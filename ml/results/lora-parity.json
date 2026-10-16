@@ -1,0 +1,112 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "adapter": "adapters/qwen3-0.6b",
+  "split": "parity",
+  "examples": 11,
+  "fusao": {
+    "n": 11,
+    "json": 1.0,
+    "result_exact": 0.273,
+    "with_suggestions": 0.273,
+    "valid_pairs_right": 0.273,
+    "invalid_pairs_rejected": null
+  },
+  "atmosfera": {
+    "n": 0,
+    "json": null,
+    "words_in_right_zone": null,
+    "exact": null
+  },
+  "latency_ms_per_call": 329,
+  "tokens_per_second": 26.8,
+  "failures": [
+    {
+      "prompt": "fusao: \"querer\" + \"ir\"",
+      "expected": {
+        "resultado": "Quero ir",
+        "sugestoes": [
+          "agora",
+          "depois"
+        ]
+      },
+      "got": "{\"resultado\":null}"
+    },
+    {
+      "prompt": "fusao: \"querer\" + \"comer\"",
+      "expected": {
+        "resultado": "Quero comer",
+        "sugestoes": [
+          "mais",
+          "menos"
+        ]
+      },
+      "got": "{\"resultado\":null}"
+    },
+    {
+      "prompt": "fusao: \"querer\" + \"beber\"",
+      "expected": {
+        "resultado": "Quero beber",
+        "sugestoes": [
+          "água",
+          "suco"
+        ]
+      },
+      "got": "{\"resultado\":null}"
+    },
+    {
+      "prompt": "fusao: \"eu\" + \"querer\"",
+      "expected": {
+        "resultado": "Eu quero",
+        "sugestoes": [
+          "ir",
+          "brincar"
+        ]
+      },
+      "got": "{\"resultado\":null}"
+    },
+    {
+      "prompt": "fusao: \"querer\" + \"brincar\"",
+      "expected": {
+        "resultado": "Quero brincar",
+        "sugestoes": [
+          "agora",
+          "depois"
+        ]
+      },
+      "got": "{\"resultado\":null}"
+    },
+    {
+      "prompt": "fusao: \"eu\" + \"Quero ir\"",
+      "expected": {
+        "resultado": "Eu quero ir",
+        "sugestoes": [
+          "agora",
+          "depois"
+        ]
+      },
+      "got": "{\"resultado\":null}"
+    },
+    {
+      "prompt": "fusao: \"Eu quero\" + \"beber\"",
+      "expected": {
+        "resultado": "Eu quero beber",
+        "sugestoes": [
+          "água",
+          "suco"
+        ]
+      },
+      "got": "{\"resultado\":null}"
+    },
+    {
+      "prompt": "fusao: \"Quero beber\" + \"água\"",
+      "expected": {
+        "resultado": "Quero beber água",
+        "sugestoes": [
+          "agora",
+          "depois"
+        ]
+      },
+      "got": "{\"resultado\":null}"
+    }
+  ]
+}

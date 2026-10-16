@@ -1,0 +1,122 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "adapter": "adapters/qwen3-0.6b",
+  "split": "test",
+  "examples": 400,
+  "fusao": {
+    "n": 294,
+    "json": 1.0,
+    "result_exact": 0.738,
+    "with_suggestions": 0.738,
+    "valid_pairs_right": 0.644,
+    "invalid_pairs_rejected": 0.92
+  },
+  "atmosfera": {
+    "n": 106,
+    "json": 1.0,
+    "words_in_right_zone": 0.737,
+    "exact": 0.396
+  },
+  "latency_ms_per_call": 439,
+  "tokens_per_second": 37.1,
+  "failures": [
+    {
+      "prompt": "fusao: \"Eu não preciso ver agora\" + \"livro\"",
+      "expected": {
+        "resultado": "Eu não preciso ver livro agora",
+        "sugestoes": [
+          "aqui",
+          "ali"
+        ]
+      },
+      "got": "{\"resultado\":null}"
+    },
+    {
+      "prompt": "fusao: \"desenho\" + \"Eu não gosto de ver hoje\"",
+      "expected": {
+        "resultado": "Eu não gosto de ver desenho hoje",
+        "sugestoes": [
+          "aqui",
+          "ali"
+        ]
+      },
+      "got": "{\"resultado\":null}"
+    },
+    {
+      "prompt": "fusao: \"eu\" + \"Posso ir para casa hoje\"",
+      "expected": {
+        "resultado": "Eu posso ir para casa hoje",
+        "sugestoes": [
+          "aqui",
+          "ali"
+        ]
+      },
+      "got": "{\"resultado\":null}"
+    },
+    {
+      "prompt": "fusao: \"Você pode brincar depois\" + \"com bola\"",
+      "expected": {
+        "resultado": "Você pode brincar com bola depois",
+        "sugestoes": [
+          "aqui",
+          "ali"
+        ]
+      },
+      "got": "{\"resultado\":null}"
+    },
+    {
+      "prompt": "fusao: \"nós\" + \"Não gosto de tomar banho depois\"",
+      "expected": {
+        "resultado": "Nós não gostamos de tomar banho depois",
+        "sugestoes": [
+          "aqui",
+          "ali"
+        ]
+      },
+      "got": "{\"resultado\":null}"
+    },
+    {
+      "prompt": "atmosfera: foco \"Não preciso comer biscoito agora\"; palavras: [\"você\", \"nós\", \"à escola\", \"biscoito\"]",
+      "expected": {
+        "1": [
+          "você",
+          "nós"
+        ],
+        "2": [],
+        "3": [
+          "à escola",
+          "biscoito"
+        ]
+      },
+      "got": "{\"1\":[\"nós\",\"biscoito\"],\"2\":[],\"3\":[\"você\",\"à escola\",\"biscoito\"]}"
+    },
+    {
+      "prompt": "atmosfera: foco \"Você precisa beber mais amanhã\"; palavras: [\"suco\", \"você\", \"não\", \"de massinha\", \"ajuda\", \"depois\"]",
+      "expected": {
+        "1": [
+          "não"
+        ],
+        "2": [],
+        "3": [
+          "suco",
+          "você",
+          "de massinha",
+          "ajuda",
+          "depois"
+        ]
+      },
+      "got": "{\"1\":[\"você\",\"não\",\"depois\"],\"2\":[],\"3\":[\"suco\",\"de massinha\",\"ajuda\"]}"
+    },
+    {
+      "prompt": "fusao: \"Nós não gostamos de comer\" + \"arroz\"",
+      "expected": {
+        "resultado": "Nós não gostamos de comer arroz",
+        "sugestoes": [
+          "agora",
+          "depois"
+        ]
+      },
+      "got": "{\"resultado\":null}"
+    }
+  ]
+}

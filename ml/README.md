@@ -72,4 +72,26 @@ Pontos em aberto:
 
 ## Resultados
 
-Ver a seção abaixo, atualizada a cada rodada.
+### Rodada 1, 16/10/2026: Qwen3-0.6B, LoRA rank 16, 600 iterações × 8 (≈ 0,67 época)
+
+Val loss: 4,26 → 0,041. O treino levou cerca de 15 min no M4.
+
+| Métrica (teste, 400 exemplos) | Base (60 exemplos) | LoRA |
+| --- | --- | --- |
+| JSON válido | 100% | 100% |
+| Fusões válidas corretas | 0% | 64,4% |
+| Pares inválidos rejeitados | 0% | 92,0% |
+| Palavras na zona certa (atmosfera) | 0% | 73,7% |
+| Atmosfera exata | 0% | 39,6% |
+| Paridade com as 11 regras do app | 0% | **27,3%** |
+| Latência por chamada (Mac M4, bf16) | 582 ms | 439 ms |
+
+**Diagnóstico:** o modelo ficou enviesado para `null`. O dataset tinha só 13 fusões válidas de palavra + palavra (o passo básico, como “querer” + “ir”) contra 3.489 de frase + palavra, por isso a paridade com o app ficou baixa.
+
+**Próxima rodada:**
+- incluir todas as fusões palavra + palavra, com sobreamostragem, além dos casos de paridade;
+- reduzir os negativos para cerca de 25%;
+- treinar de 2 a 3 épocas;
+- reavaliar.
+
+O app continua usando o `RuleEngine`.
