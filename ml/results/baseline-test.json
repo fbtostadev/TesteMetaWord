@@ -1,0 +1,92 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "adapter": null,
+  "split": "test",
+  "examples": 60,
+  "fusao": {
+    "n": 46,
+    "json": 1.0,
+    "result_exact": 0.0,
+    "with_suggestions": 0.0,
+    "valid_pairs_right": 0.0,
+    "invalid_pairs_rejected": 0.0
+  },
+  "atmosfera": {
+    "n": 14,
+    "json": 1.0,
+    "words_in_right_zone": 0.0,
+    "exact": 0.0
+  },
+  "latency_ms_per_call": 578,
+  "tokens_per_second": 49.7,
+  "failures": [
+    {
+      "prompt": "fusao: \"Eu não preciso ver agora\" + \"livro\"",
+      "expected": {
+        "resultado": "Eu não preciso ver livro agora",
+        "sugestoes": [
+          "aqui",
+          "ali"
+        ]
+      },
+      "got": "{\n  \"fusao\": \"Eu não preciso ver agora, livro\"\n}"
+    },
+    {
+      "prompt": "fusao: \"longe\" + \"Eu não posso tomar banho depois\"",
+      "expected": {
+        "resultado": null
+      },
+      "got": "{\n  \"fusao\": \"longe eu não posso tomar banho\",\n  \"sintaxe\": \"longe + eu não posso tomar banho\"\n}"
+    },
+    {
+      "prompt": "fusao: \"desenho\" + \"Eu não gosto de ver hoje\"",
+      "expected": {
+        "resultado": "Eu não gosto de ver desenho hoje",
+        "sugestoes": [
+          "aqui",
+          "ali"
+        ]
+      },
+      "got": "{\n  \"fusao\": \"desenho eu não gosto de ver hoje\"\n}"
+    },
+    {
+      "prompt": "fusao: \"precisar\" + \"agora\"",
+      "expected": {
+        "resultado": null
+      },
+      "got": "```json\n{\n  \"fusao\": \"precisar agora\"\n}\n```"
+    },
+    {
+      "prompt": "fusao: \"eu\" + \"Posso ir para casa hoje\"",
+      "expected": {
+        "resultado": "Eu posso ir para casa hoje",
+        "sugestoes": [
+          "aqui",
+          "ali"
+        ]
+      },
+      "got": "{\n  \"fusao\": \"Eu posso ir para casa hoje\"\n}"
+    },
+    {
+      "prompt": "fusao: \"Não preciso brincar lá fora amanhã\" + \"mais\"",
+      "expected": {
+        "resultado": null
+      },
+      "got": "{\n  \"fusao\": \"Não preciso brincar lá fora amanhã mais\"\n}"
+    },
+    {
+      "prompt": "fusao: \"Eu não preciso brincar lá fora\" + \"sim\"",
+      "expected": {
+        "resultado": null
+      },
+      "got": "{\n  \"fusao\": \"sim\",\n  \"resposta\": \"sim, eu não preciso brincar lá fora.\"\n}"
+    },
+    {
+      "prompt": "fusao: \"sim\" + \"Você gosta de ir agora\"",
+      "expected": {
+        "resultado": null
+      },
+      "got": "{\n  \"fusao\": \"sim, você gosta de ir agora\"\n}"
+    }
+  ]
+}

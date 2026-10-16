@@ -1,0 +1,31 @@
+{
+  "_comment": "Gramática de C.A. em pt-BR usada para gerar o dataset. Revise antes de treinar. Frases têm a forma [sujeito] [não] modal verbo [complemento|quantidade] [tempo]. Sem sujeito, a frase usa a primeira pessoa.",
+  "subjects": {
+    "eu": { "label": "Eu", "querer": "quero", "precisar": "preciso", "poder": "posso", "gostar": "gosto de" },
+    "você": { "label": "Você", "querer": "quer", "precisar": "precisa", "poder": "pode", "gostar": "gosta de" },
+    "nós": { "label": "Nós", "querer": "queremos", "precisar": "precisamos", "poder": "podemos", "gostar": "gostamos de" }
+  },
+  "default_subject": "eu",
+  "modals": ["querer", "precisar", "poder", "gostar"],
+  "negation": "não",
+  "verbs": {
+    "ir": { "complements": ["para casa", "ao banheiro", "à escola", "ao parque"], "suggest": ["agora", "depois"] },
+    "comer": { "complements": ["pão", "fruta", "biscoito", "arroz"], "quantity": true, "suggest": ["mais", "menos"] },
+    "beber": { "complements": ["água", "suco", "leite"], "quantity": true, "suggest": ["água", "suco"] },
+    "brincar": { "complements": ["com bola", "lá fora", "de massinha"], "suggest": ["agora", "depois"] },
+    "dormir": { "complements": [], "suggest": ["agora", "depois"] },
+    "ver": { "complements": ["TV", "desenho", "livro"], "suggest": ["TV", "livro"] },
+    "ouvir": { "complements": ["música", "história"], "suggest": ["música", "história"] },
+    "tomar banho": { "complements": [], "suggest": ["agora", "depois"] }
+  },
+  "subject_modal_suggest": ["ir", "brincar"],
+  "negated_modal_suggest": ["ir", "comer"],
+  "quantities": ["mais", "menos"],
+  "times": ["agora", "depois", "hoje", "amanhã"],
+  "after_complement_suggest": ["agora", "depois"],
+  "after_time_suggest": {
+    "ir": { "agora": ["perto", "longe"], "depois": ["hoje", "amanhã"] },
+    "default": ["aqui", "ali"]
+  },
+  "extra_words": ["aqui", "ali", "perto", "longe", "sim", "obrigado", "ajuda", "dor"]
+}

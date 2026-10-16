@@ -1,0 +1,112 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "adapter": null,
+  "split": "parity",
+  "examples": 11,
+  "fusao": {
+    "n": 11,
+    "json": 1.0,
+    "result_exact": 0.0,
+    "with_suggestions": 0.0,
+    "valid_pairs_right": 0.0,
+    "invalid_pairs_rejected": null
+  },
+  "atmosfera": {
+    "n": 0,
+    "json": null,
+    "words_in_right_zone": null,
+    "exact": null
+  },
+  "latency_ms_per_call": 500,
+  "tokens_per_second": 48.9,
+  "failures": [
+    {
+      "prompt": "fusao: \"querer\" + \"ir\"",
+      "expected": {
+        "resultado": "Quero ir",
+        "sugestoes": [
+          "agora",
+          "depois"
+        ]
+      },
+      "got": "```json\n{\n  \"fusao\": \"querir ir\",\n  \"palavras\": [\"querer\", \"ir\"]\n}\n```"
+    },
+    {
+      "prompt": "fusao: \"querer\" + \"comer\"",
+      "expected": {
+        "resultado": "Quero comer",
+        "sugestoes": [
+          "mais",
+          "menos"
+        ]
+      },
+      "got": "```json\n{\n  \"fusao\": \"querer_comer\"\n}\n```"
+    },
+    {
+      "prompt": "fusao: \"querer\" + \"beber\"",
+      "expected": {
+        "resultado": "Quero beber",
+        "sugestoes": [
+          "água",
+          "suco"
+        ]
+      },
+      "got": "```json\n{\n  \"fusao\": \"querer + beber\",\n  \"interpretação\": \"Quer beber\"\n}\n```"
+    },
+    {
+      "prompt": "fusao: \"Quero ir\" + \"agora\"",
+      "expected": {
+        "resultado": "Quero ir agora",
+        "sugestoes": [
+          "perto",
+          "longe"
+        ]
+      },
+      "got": "```json\n{\n  \"fusao\": \"Quero ir agora\"\n}\n```"
+    },
+    {
+      "prompt": "fusao: \"Quero ir\" + \"depois\"",
+      "expected": {
+        "resultado": "Quero ir depois",
+        "sugestoes": [
+          "hoje",
+          "amanhã"
+        ]
+      },
+      "got": "```json\n{\n  \"fusao\": \"Quero ir depois\",\n  \"comportamento\": \"Quero ir depois de fazer algo\"\n}\n```"
+    },
+    {
+      "prompt": "fusao: \"eu\" + \"querer\"",
+      "expected": {
+        "resultado": "Eu quero",
+        "sugestoes": [
+          "ir",
+          "brincar"
+        ]
+      },
+      "got": "```json\n{\n  \"fusao\": \"eu querer\"\n}\n```"
+    },
+    {
+      "prompt": "fusao: \"querer\" + \"brincar\"",
+      "expected": {
+        "resultado": "Quero brincar",
+        "sugestoes": [
+          "agora",
+          "depois"
+        ]
+      },
+      "got": "```json\n{\n  \"fusao\": \"querer brincar\",\n  \"palavras\": [\"querer\", \"brincar\"]\n}\n```"
+    },
+    {
+      "prompt": "fusao: \"eu\" + \"Quero ir\"",
+      "expected": {
+        "resultado": "Eu quero ir",
+        "sugestoes": [
+          "agora",
+          "depois"
+        ]
+      },
+      "got": "```json\n{\n  \"fusao\": \"Eu quero ir\"\n}\n```"
+    }
+  ]
+}

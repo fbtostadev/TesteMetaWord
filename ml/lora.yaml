@@ -1,0 +1,21 @@
+# mlx-lm LoRA fine-tune of the composition engine. Run from ml/: python3 -m mlx_lm lora -c lora.yaml
+model: "Qwen/Qwen3-0.6B"
+train: true
+data: "data"
+fine_tune_type: lora
+mask_prompt: true          # learn only the answers, not the prompts
+num_layers: -1             # adapt every transformer layer (the model has 28)
+batch_size: 8
+iters: 600
+learning_rate: 1.0e-4
+steps_per_report: 20
+steps_per_eval: 100
+val_batches: 25
+save_every: 200
+max_seq_length: 256
+adapter_path: "adapters/qwen3-0.6b"
+seed: 7
+lora_parameters:
+  rank: 16
+  scale: 20.0
+  dropout: 0.0
