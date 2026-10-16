@@ -6,14 +6,14 @@ fine_tune_type: lora
 mask_prompt: true          # learn only the answers, not the prompts
 num_layers: -1             # adapt every transformer layer (the model has 28)
 batch_size: 8
-iters: 600
+iters: 1900               # ≈ 2 épocas de 7.650 exemplos
 learning_rate: 1.0e-4
 steps_per_report: 20
-steps_per_eval: 100
+steps_per_eval: 250
 val_batches: 25
-save_every: 200
+save_every: 500
 max_seq_length: 256
-adapter_path: "adapters/qwen3-0.6b"
+adapter_path: "adapters/qwen3-0.6b-r2"
 seed: 7
 lora_parameters:
   rank: 16

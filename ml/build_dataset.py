@@ -171,7 +171,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--fusions", type=int, default=6000, help="fusion examples before the split")
     parser.add_argument("--atmospheres", type=int, default=2000, help="atmosphere examples before the split")
-    parser.add_argument("--negative-share", type=float, default=0.35)
+    parser.add_argument("--negative-share", type=float, default=0.25)
+    parser.add_argument("--core-repeat", type=int, default=6, help="copies of each valid word + word pair in train")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--out", type=Path, default=HERE / "data")
     args = parser.parse_args()
@@ -184,16 +185,20 @@ def main():
 
     rng = random.Random(args.seed)
     texts = grammar.atoms + sorted(grammar.phrases)
+    # Core: every pair of single words. Few, finite and the first step of every phrase, so all
+    # of them go to training, repeated, and never to the held-out splits.
+    core_valid, core_invalid = [], []
+    for a, b in itertools.combinations(grammar.atoms, 2):
+        (core_valid if grammar.fuse(a, b) else core_invalid).append((a, b))
     positives, negatives = set(), set()
     for phrase in sorted(grammar.phrases):
         for atom in grammar.atoms:
             if grammar.fuse(phrase, atom):
                 positives.add(frozenset((phrase, atom)))
-    for a, b in itertools.combinations(grammar.atoms, 2):
-        (positives if grammar.fuse(a, b) else negatives).add(frozenset((a, b)))
+    phrases = sorted(grammar.phrases)
     while len(negatives) < len(positives):
-        pair = frozenset((rng.choice(texts), rng.choice(grammar.atoms)))
-        if len(pair) == 2 and not grammar.fuse(*pair):
+        pair = frozenset((rng.choice(phrases), rng.choice(grammar.atoms)))
+        if not grammar.fuse(*pair):
             negatives.add(pair)
     negative_count = int(args.fusions * args.negative_share)
     pairs = rng.sample(sorted(map(sorted, positives)), min(len(positives), args.fusions - negative_count))
@@ -213,7 +218,12 @@ def main():
 
     rng.shuffle(examples)
     held = max(1, len(examples) // 20)
-    splits = {"test": examples[:held], "valid": examples[held:2 * held], "train": examples[2 * held:]}
+    core = [fusion_example(grammar, *rng.sample(pair, 2)) for pair in core_valid for _ in range(args.core_repeat)]
+    core += [fusion_example(grammar, *rng.sample(pair, 2)) for pair in rng.sample(core_invalid, min(len(core_invalid), len(core) // 3))]
+    core += [fusion_example(grammar, a, b) for a, b, _, _ in PARITY for _ in range(args.core_repeat)]
+    train = examples[2 * held:] + core
+    rng.shuffle(train)
+    splits = {"test": examples[:held], "valid": examples[held:2 * held], "train": train}
     splits["parity"] = [fusion_example(grammar, a, b) for a, b, _, _ in PARITY]
     args.out.mkdir(parents=True, exist_ok=True)
     for name, rows in splits.items():
@@ -221,7 +231,7 @@ def main():
             for row in rows:
                 file.write(json.dumps(row, ensure_ascii=False) + "\n")
     print(f"{len(grammar.atoms)} palavras, {len(grammar.phrases)} frases, "
-          f"{len(positives)} fusões válidas; " + ", ".join(f"{k}: {len(v)}" for k, v in splits.items()))
+          f"{len(positives)} fusões frase + palavra, {len(core_valid)} palavra + palavra válidas; " + ", ".join(f"{k}: {len(v)}" for k, v in splits.items()))
 
 
 if __name__ == "__main__":
