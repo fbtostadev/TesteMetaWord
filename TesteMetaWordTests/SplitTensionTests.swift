@@ -5,7 +5,7 @@ import Foundation
 struct SplitTensionTests {
     @Test func progressRunsFromPressToSplit() {
         #expect(SplitTension.progress(since: 10, now: 9) == 0)
-        #expect(abs(SplitTension.progress(since: 10, now: 10.3) - 0.5) < 1e-9)
+        #expect(abs(SplitTension.progress(since: 10, now: 10 + SplitTension.duration / 2) - 0.5) < 1e-9)
         #expect(SplitTension.progress(since: 10, now: 12) == 1)
     }
 

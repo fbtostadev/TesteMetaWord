@@ -6,7 +6,7 @@ import CoreGraphics
 /// for haptics. Curves and sounds are pure functions; `SplitSound` only plays them.
 enum SplitTension {
     /// Same as the long-press duration: the pop lands on the split.
-    static let duration: TimeInterval = 0.6
+    static let duration: TimeInterval = 0.45
     static let maxAmplitude: CGFloat = 2.5
     static let maxSwell: CGFloat = 0.04
     static let sampleRate = 44_100.0
@@ -48,14 +48,13 @@ enum SplitTension {
     private let hum = AVAudioPlayerNode()
     private let pop = AVAudioPlayerNode()
     private let format = AVAudioFormat(standardFormatWithSampleRate: SplitTension.sampleRate, channels: 1)!
-    var muted = false
     private var humBuffer: AVAudioPCMBuffer?
     private var popBuffer: AVAudioPCMBuffer?
     /// Bumped on every begin, so a fade from an earlier press never stops a newer one.
     private var generation = 0
 
     func begin() {
-        guard !muted, start(), let humBuffer else { return }
+        guard start(), let humBuffer else { return }
         generation += 1
         hum.stop()
         hum.volume = 1
@@ -67,7 +66,7 @@ enum SplitTension {
     func cancel() { fadeHum() }
 
     func burst() {
-        guard !muted, start(), let popBuffer else { return }
+        guard start(), let popBuffer else { return }
         fadeHum()
         pop.stop()
         pop.scheduleBuffer(popBuffer)

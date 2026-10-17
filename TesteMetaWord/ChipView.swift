@@ -10,6 +10,8 @@ struct ChipView: View {
     let namespace: Namespace.ID
     let activate: () -> Void
     let undo: () -> Void
+    /// Buds related words, as shaking the bubble does.
+    let derive: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -46,6 +48,7 @@ struct ChipView: View {
         .accessibilityHint(armed ? "Ative para confirmar a combinação" : "Selecione e depois escolha outra palavra")
         .accessibilityAddTraits(selected || armed ? .isSelected : [])
         .accessibilityActions {
+            Button("Derivar palavras relacionadas", action: derive)
             if canUndo { Button("Desfazer última combinação", action: undo) }
         }
         .accessibilityIdentifier("chip-\(chip.text)")

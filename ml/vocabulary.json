@@ -1,5 +1,5 @@
 {
-  "_comment": "Gramática de C.A. em pt-BR usada para gerar o dataset. Revise antes de treinar. Frases têm a forma [sujeito] [não] modal verbo [complemento|quantidade] [tempo]. Sem sujeito, a frase usa a primeira pessoa.",
+  "_comment": "Gramática de C.A. em pt-BR usada para gerar o dataset. Revise antes de treinar. Frases têm a forma [sujeito] [não] modal verbo [complemento|quantidade] [tempo]. Sem sujeito, a frase usa a primeira pessoa. Fusões fora desse padrão são graus mais fracos lidos só pelo app (TesteMetaWord/Grammar.swift): present conjuga o verbo sem modal; places e interjections classificam as extra_words.",
   "subjects": {
     "eu": { "label": "Eu", "querer": "quero", "precisar": "preciso", "poder": "posso", "gostar": "gosto de" },
     "você": { "label": "Você", "querer": "quer", "precisar": "precisa", "poder": "pode", "gostar": "gosta de" },
@@ -9,14 +9,14 @@
   "modals": ["querer", "precisar", "poder", "gostar"],
   "negation": "não",
   "verbs": {
-    "ir": { "complements": ["para casa", "ao banheiro", "à escola", "ao parque"], "suggest": ["agora", "depois"] },
-    "comer": { "complements": ["pão", "fruta", "biscoito", "arroz"], "quantity": true, "suggest": ["mais", "menos"] },
-    "beber": { "complements": ["água", "suco", "leite"], "quantity": true, "suggest": ["água", "suco"] },
-    "brincar": { "complements": ["com bola", "lá fora", "de massinha"], "suggest": ["agora", "depois"] },
-    "dormir": { "complements": [], "suggest": ["agora", "depois"] },
-    "ver": { "complements": ["TV", "desenho", "livro"], "suggest": ["TV", "livro"] },
-    "ouvir": { "complements": ["música", "história"], "suggest": ["música", "história"] },
-    "tomar banho": { "complements": [], "suggest": ["agora", "depois"] }
+    "ir": { "complements": ["para casa", "ao banheiro", "à escola", "ao parque"], "suggest": ["agora", "depois"], "present": { "eu": "vou", "você": "vai", "nós": "vamos" } },
+    "comer": { "complements": ["pão", "fruta", "biscoito", "arroz"], "quantity": true, "suggest": ["mais", "menos"], "present": { "eu": "como", "você": "come", "nós": "comemos" } },
+    "beber": { "complements": ["água", "suco", "leite"], "quantity": true, "suggest": ["água", "suco"], "present": { "eu": "bebo", "você": "bebe", "nós": "bebemos" } },
+    "brincar": { "complements": ["com bola", "lá fora", "de massinha"], "suggest": ["agora", "depois"], "present": { "eu": "brinco", "você": "brinca", "nós": "brincamos" } },
+    "dormir": { "complements": [], "suggest": ["agora", "depois"], "present": { "eu": "durmo", "você": "dorme", "nós": "dormimos" } },
+    "ver": { "complements": ["TV", "desenho", "livro"], "suggest": ["TV", "livro"], "present": { "eu": "vejo", "você": "vê", "nós": "vemos" } },
+    "ouvir": { "complements": ["música", "história"], "suggest": ["música", "história"], "present": { "eu": "ouço", "você": "ouve", "nós": "ouvimos" } },
+    "tomar banho": { "complements": [], "suggest": ["agora", "depois"], "present": { "eu": "tomo banho", "você": "toma banho", "nós": "tomamos banho" } }
   },
   "subject_modal_suggest": ["ir", "brincar"],
   "negated_modal_suggest": ["ir", "comer"],
@@ -27,5 +27,7 @@
     "ir": { "agora": ["perto", "longe"], "depois": ["hoje", "amanhã"] },
     "default": ["aqui", "ali"]
   },
-  "extra_words": ["aqui", "ali", "perto", "longe", "sim", "obrigado", "ajuda", "dor"]
+  "extra_words": ["aqui", "ali", "perto", "longe", "sim", "obrigado", "ajuda", "dor"],
+  "places": ["aqui", "ali", "perto", "longe"],
+  "interjections": ["sim", "obrigado", "ajuda", "dor"]
 }

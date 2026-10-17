@@ -6,7 +6,7 @@ import Foundation
     @Test func vocabularyIsUnorderedAndRejectsUnknownPairs() {
         #expect(Vocabulary.combine("querer", "ir")?.result == "Quero ir")
         #expect(Vocabulary.combine("ir", "querer") == Vocabulary.combine("querer", "ir"))
-        #expect(Vocabulary.combine("eu", "brincar") == nil)
+        #expect(Vocabulary.combine("eu", "brincar")?.strength == 2, "out of the phrase grammar, but still fusible")
         #expect(Vocabulary.combine("Quero ir", "agora")?.suggestions == ["perto", "longe"])
     }
 
@@ -54,20 +54,20 @@ import Foundation
         let intermediate = c.chips
         let older = try #require(c.chips.first { $0.text == "Quero ir" })
         try await merge("Quero ir", "agora")
-        c.undo(from: older.id)
+        #expect(!c.split(older.id), "an older result does not split")
         #expect(c.chips != intermediate)
         let latest = try #require(c.chips.first { $0.text == "Quero ir agora" })
-        c.undo(from: latest.id)
+        #expect(c.split(latest.id))
         #expect(c.chips == intermediate)
         c.undo()
         #expect(c.chips == initial)
     }
 
     @Test func invalidSelectionAndCancellationDoNotMutateComposition() {
-        let c = Composition()
+        let c = PinchTests.withoutEuBrincar()
         let original = c.chips
-        c.tap(original[2].id); c.tap(original[4].id)
-        #expect(c.selected == original[4].id)
+        c.tap(original[4].id); c.tap(original[5].id)
+        #expect(c.selected == original[5].id)
         #expect(c.candidate == nil)
         c.cancel()
         #expect(c.selected == nil)
@@ -151,9 +151,9 @@ import Foundation
     }
 
     @Test func relevanceZonesFollowTheFocus() {
-        #expect(Vocabulary.zone(of: "ir", focus: "querer", among: ["querer", "ir", "comer"]) == 1)
-        #expect(Vocabulary.zone(of: "ir", focus: "comer", among: ["comer", "ir", "querer"]) == 2)
-        #expect(Vocabulary.zone(of: "ir", focus: "comer", among: ["comer", "ir"]) == 3)
+        #expect(Vocabulary.zone(of: "ir", focus: "querer") == 1, "Quero ir")
+        #expect(Vocabulary.zone(of: "ir", focus: "eu") == 2, "Eu vou")
+        #expect(Vocabulary.zone(of: "ir", focus: "comer") == 3, "Comer e ir")
     }
 
     @Test func latestFusionBecomesTheOpticalCenterAndRezonesTheComposition() async throws {
@@ -208,7 +208,6 @@ import Foundation
             fusions: [["ir", "comer"]: Vocabulary.Combination(result: "Ir comer", suggestions: ["já", "logo"])],
             focus: "comer", zones: ["ir": 1, "querer": 3])))
         let ir = c.chips.first { $0.text == "ir" }!.id, comer = c.chips.first { $0.text == "comer" }!.id
-        #expect(!c.compatible(ir, comer), "rules know nothing about ir + comer")
         await c.refresh()
         #expect(c.compatible(ir, comer))
         #expect(c.focus == comer)

@@ -89,11 +89,10 @@ enum SfxSynth {
     private var buffers: [SfxCue: AVAudioPCMBuffer] = [:]
     private var lastPlayed: [SfxCue: TimeInterval] = [:]
     private var loaded = false
-    var muted = false
 
     func play(_ cue: SfxCue) {
         let now = ProcessInfo.processInfo.systemUptime
-        guard !muted, now - (lastPlayed[cue] ?? -.infinity) >= cue.cooldown, load(), let player = players[cue],
+        guard now - (lastPlayed[cue] ?? -.infinity) >= cue.cooldown, load(), let player = players[cue],
               let buffer = buffers[cue] else { return }
         lastPlayed[cue] = now
         if !engine.isRunning { try? engine.start() }
@@ -180,10 +179,8 @@ final class DepthVoice: @unchecked Sendable {
     private let engine = AVAudioEngine()
     private let voice = DepthVoice(sampleRate: SfxSynth.sampleRate)
     private var attached = false
-    var muted = false { didSet { if muted { voice.set(depth: 0) } } }
 
     func update(depth: Double) {
-        guard !muted else { return voice.set(depth: 0) }
         if depth > 0, !start() { return }
         voice.set(depth: depth)
     }

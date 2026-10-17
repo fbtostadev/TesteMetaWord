@@ -24,37 +24,38 @@ Estado e parâmetros vivem apenas na sessão. Sem SwiftData, voz ou serviços re
 
 - `TesteMetaWord/Composition.swift`: estado, gestos, fusão, Undo, foco e zonas lidos do último léxico do motor.
 - `TesteMetaWord/CompositionEngine.swift`: contrato do motor (`lexicon(for:focus:)`) e `RuleEngine`, o motor padrão e fallback.
-- `TesteMetaWord/Vocabulary.swift`: combinações locais e relevância (`zone`) usadas pelo `RuleEngine`.
+- `TesteMetaWord/Vocabulary.swift`: palavras iniciais, combinações e relevância (`zone`) usadas pelo `RuleEngine`.
+- `TesteMetaWord/Grammar.swift`: gramática procedural de fusão, lida de `ml/vocabulary.json` (recurso do app e fonte do dataset; ver `SPEC.md`).
 - `ml/`: preparação do motor por modelo local (dataset, LoRA, avaliação); ver `ml/README.md`.
 - `TesteMetaWord/Physics.swift`: física pura (repulsão, slots por zona, nascimento, órbita) com as constantes nomeadas.
 - `TesteMetaWord/ContentView.swift`: canvas, `TimelineView` como relógio da física, atmosferas, gestos e animações.
-- `TesteMetaWord/AtmosphereView.swift`: parâmetros compartilhados, interpolação e referência por gradientes.
+- `TesteMetaWord/AtmosphereView.swift`: parâmetros do shader da atmosfera e sua interpolação.
 - `TesteMetaWord/Atmosphere.metal`: faixas suaves, união luminosa das cápsulas e deformação localizada.
 - `TesteMetaWord/ChipView.swift`: cápsula de vidro, estado armado e pulso.
 - `TesteMetaWord/TouchTracker.swift`: observador UIKit dos dedos na tela (posição e quantidade), sem consumir toques; base da pinça.
 - `TesteMetaWord/SplitTension.swift`: tensão do long press (curva do tremor, síntese do som tremular, reprodução).
 - `TesteMetaWord/Sfx.swift`: sons de fundo sintetizados (fusão, divisão, erro) e seu player.
-- `scripts/capture-atmosphere.py`: testes e capturas da atmosfera, incluindo o arrasto mantido em estado armado.
+- `TesteMetaWord/Shake.swift`: reconhecimento da sacudida no arrasto.
 
 ## Build e testes
 
 ```sh
-xcodegen generate
+xcodegen generate          # só ao criar ou remover arquivos
 ./scripts/build.sh
-xcodebuild test -project TesteMetaWord.xcodeproj -scheme TesteMetaWord -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M5)' -derivedDataPath build/DerivedData -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO
+./scripts/test.sh          # testes de lógica, o ciclo do dia a dia (~15 s com build)
+./scripts/test.sh ui       # o percurso único de interface (~25 s)
+./scripts/test.sh all      # os dois, antes de integrar em main
 ```
+
+A saída é silenciosa (`-quiet`): só falhas e o resumo; código de saída 0 é aprovado. `DESTINATION='platform=iOS Simulator,id=<UDID>'` escolhe outro simulador.
 
 Se o ambiente impedir o sandbox de macros, use `./scripts/build.sh 'OTHER_SWIFT_FLAGS=$(inherited) -disable-sandbox'`.
 
 Build para dispositivo sem assinatura: `build/DerivedData/Build/Products/Debug-iphoneos/TesteMetaWord.app`.
 
-Para capturar a atmosfera sem disputar o simulador de outro experimento, use um iPad dedicado já iniciado e passe seu UDID (`xcrun simctl list devices booted`):
+Validação mínima: build, testes de lógica e um percurso de interface básico. Não há testes nem scripts de comparação visual; crashes e erros críticos são relatados pela pessoa usuária (ver `AGENTS.md`, “Validação”).
 
-```sh
-python3 scripts/capture-atmosphere.py <UDID> --label comparacao-01
-```
-
-O script executa a suíte completa com `xcodebuild test`; use `--only-atmosphere` para repetir os dois percursos visuais e a soltura superficial; `--only-metal` executa somente o percurso Metal com A/B e rotação. Usa somente a biblioteca padrão do Python 3. Cada `--label` deve ser novo, pois preserva o `.xcresult` anterior. Logs, resultados, capturas PNG e anexos exportados ficam em `build/`. O XCTest segura o arrasto por 8 s; `simctl` captura enquanto ele permanece pressionado. Os nomes incluem `metal` ou `gradients`. Sequências `fusion` e `split` registram a reorganização e o Undo; `resistance` registra a pressão superficial. O teste abre a calibração e exige “Metal ativo”, para não aceitar o fallback como evidência do shader. O argumento `--atmosphere-renderer=gradients` permite iniciar a referência na automação.
+> **Histórico:** o renderizador por gradientes, o interruptor de sons e o script `scripts/capture-atmosphere.py` foram removidos em `exp/gramatica-procedural`. As seções abaixo registram experimentos anteriores e citam esses recursos como estavam.
 
 ## Referência preservada
 

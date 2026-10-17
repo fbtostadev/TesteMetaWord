@@ -7,11 +7,10 @@ Na worktree `TesteMetaWord-wt-metal-atmosphere`, branch `exp/metal-atmosphere`, 
 ## Estado entregue
 
 - **Foco:** é o resultado da última fusão ou, sem fusão, a palavra com mais combinações. É atraído para o centro do canvas (`Composition.focus`).
-- **Zonas:** 1, combina com o foco; 2, combina com outra palavra; 3, sem combinação (`Vocabulary.zone`, `Composition.zones`). Os gaps-alvo até a superfície do foco são 40 / 136 / 232 pt.
-- **Referência por gradientes** (`AtmosphereView.swift`): `EllipticalGradient` com transparência nas duas extremidades, somente nas zonas ocupadas. Zona 1 é a mais luminosa; vazia, deixa o centro neutro. O alcance usa o gap da física + 68 pt; apenas o desenho comprime a largura adicional das frases para 45%. Fundo radial noturno e vinheta além da Zona 3 permanecem independentes da ocupação.
+- **Zonas:** 1, combina com o foco; 2, combina com outra palavra; 3, sem combinação (`Vocabulary.zone`, `Composition.zones`). Os gaps-alvo até a superfície do foco são 30 / 116 / 202 pt, tomados pelas zonas ocupadas em ordem (zona vazia não ocupa anel).
 - **Metal** (`Atmosphere.metal`): shader `[[ stitchable ]]` como `ShapeStyle`, com dithering, alfa pré-multiplicado e teto de 0,18. Três zonas analíticas usam gaps recebidos da física. O par usa distância a cápsulas e união suave (24 pt), queda de 28 pt e deformação local de até 8 pt num alcance de 160 pt.
 - **Dados compartilhados:** foco, três intensidades, duas superfícies visíveis e aproximação lógica. A resistência atenua a luz e o recuo da membrana desloca a geometria. Não há buffer do vocabulário, relógio adicional ou efeito sobre o texto/vidro.
-- **Comparação:** menu nativo Metal/Gradientes na calibração, sem persistência nem reset da composição/Undo. Metal é o padrão. Pré-compilação assíncrona; Gradientes enquanto prepara ou se falhar, com estado visível no painel. O relógio do canvas pausa enquanto o painel está aberto; o popover é ancorado no botão de calibração.
+- **Calibração:** só a distância de aproximação; o relógio do canvas pausa enquanto o painel está aberto, ancorado no botão de calibração. A atmosfera é só Metal (removidos o renderizador por gradientes e o seletor).
 - **Feedback luminoso:** reforço interno somente se o foco participar, par mais luminoso ao armar e atenuado pela resistência. Interpolação de foco/ocupação/dimensão em 0,24 s e feedback em 0,14 s; última geometria retida durante a saída. Camada sem interação, atrás do vidro. Sem animação autônoma.
 - **Física** (`Physics.swift`, pura): repulsão abaixo de 40 pt e mola até um slot em cada zona. Os slots têm ângulos uniformes, preservam a ordem angular e usam a rotação de menor deslocamento; o raio é obtido por bisseção no gap-alvo. A física fica congelada durante calibração, arrasto, seleção, par preparado e fusão.
 - **Fusão:**
@@ -42,6 +41,53 @@ Na worktree `TesteMetaWord-wt-metal-atmosphere`, branch `exp/metal-atmosphere`, 
 - Código do app, testes, scripts e configuração do projeto idênticos aos do experimento validado em `08eb506`; testes anteriores continuam aplicáveis. Build repetido após a atualização, aprovado (`build/merge-prep-build.log`).
 - Integrada a `main` em `bed3303`; em seguida `exp/long-press-split` (`fd14e01`) entrou por cima, com conflitos de texto em README e SPEC e o `.xcodeproj` regenerado por XcodeGen.
 - Destino: `main` em `~/dev/TesteMetaWord`. Worktrees encerradas. Capturas-chave do Metal versionadas em `docs/media/metal/`; PNGs originais, sequências, logs e `.xcresult` arquivados em `~/dev/TesteMetaWord-artifacts/metal-atmosphere` (fora do Git).
+
+## Experimento: gramática procedural (`exp/gramatica-procedural`)
+
+Worktree `TesteMetaWord-wt-gramatica-procedural`. A tabela de regras escrita à mão em `Vocabulary.swift` foi substituída por `Grammar.swift`, porte da classe `Grammar` de `ml/build_dataset.py`. Ela lê `ml/vocabulary.json`, que passa a ser recurso do app (via `project.yml`) e fonte única para o app e o dataset. A API de `Vocabulary` e o contrato `CompositionEngine`/`Lexicon` não mudaram.
+
+- **Cobertura:** 49 palavras; 4.992 frases fortes (antes, 41 pares). Entram sujeitos você/nós, negação, modais precisar/poder/gostar, verbos dormir/ver/ouvir/tomar banho, complementos, tempos hoje/amanhã, lugares e interjeições. As palavras iniciais não mudaram.
+- **Fusão total:** qualquer palavra, de qualquer zona, se funde com qualquer outra, e o resultado vira o foco. A zona passa a ser a força da fusão com o foco: 1 forte (frase da gramática), 2 média (telegráfica ou reparada, “Eu brinco”), 3 fraca (coordenada, “Quero ir e comer”). `Vocabulary.Combination.strength` carrega a força; `Composition` recebe o léxico inicial por parâmetro, para testar motores que omitam pares (a pinça incompatível só existe nesse caso).
+- **Paridade:** as fusões fortes mantêm os 41 resultados da tabela anterior. Quatro sugestões mudaram (ver `SPEC.md`), o que levou o percurso visual a usar Eu quero comer + **mais** no lugar de + agora; a captura “long-phrase” deixa de mostrar a Zona 1 vazia.
+- **Testes:** 46 Swift Testing e 9 XCTest de interface aprovados no simulador iPad Pro 13-inch (M5) (`build/fusao-total.xcresult` e o novo `testOuterZoneWordFusesWithTheFocus`, que arrasta uma palavra da zona externa sobre o foco). Não validado no iPad físico nem por leitura das novas frases com fonoaudiólogos.
+- **Divergência com `ml/`:** `vocabulary.json` ganhou `present`, `places` e `interjections`, lidos só pelo app. O dataset (`build_dataset.py`) ainda trata as fusões média e fraca como inválidas; o modelo precisa de nova rodada antes de virar `LocalModelEngine`.
+- **Camadas compactas:** repulsão de 40 → 30 pt, spacing do vidro de 32 → 24 pt e anéis a 30 / 116 / 202 pt (antes 40 / 136 / 232). Zona vazia não ocupa anel: as externas se reaproximam da BubbleKey (`Physics.zoneGap(_:occupied:)`, também na atmosfera).
+- **Sacudir:** `ShakeDetector` (três inversões em 0,8 s, balanços de 28 pt) deriva até três palavras de `Lexicon.related`, sem mudar o foco; Undo as remove. Ação de acessibilidade equivalente. Testes de lógica cobrem o reconhecimento, as palavras e o Undo; **o XCTest não faz arrasto com vários segmentos**, então a sacudida real fica para validação à mão.
+- **Testes após camadas e sacudir:** 51 Swift Testing e 9 XCTest de interface aprovados (`build/camadas-sacudir.xcresult`).
+- **Limpeza:** atmosfera só Metal (sem renderizador por gradientes, seletor na calibração nem argumento de lançamento; até compilar, o canvas fica sem atmosfera), sons sempre ligados (sem interruptor), `scripts/capture-atmosphere.py` removido e testes de interface reduzidos a um percurso básico num só lançamento (~25 s, antes ~200 s). `scripts/test.sh` roda lógica, interface ou os dois, com saída silenciosa. Validação mínima, conforme `AGENTS.md`; 51 Swift Testing e o percurso de interface aprovados.
+- **Correção de sobreposição:** depois de sacudir (camada lotada) e com BubbleKey larga, palavras ficavam encostadas com ponte de vidro, porque os alvos de cada camada eram ângulos iguais sem checar espaço e a mola equilibrava a repulsão. Agora o anel é empacotado pelo espaço real, o excedente transborda para o anel seguinte e os anéis externos desviam das palavras internas (`Physics.targets`). Testes novos reproduzem os dois casos (`aCrowdedZoneOverflowsInsteadOfPinningWords`, `aWideFocusKeepsItsZonesApart`). `scripts/test.sh` deixou de usar `-quiet`, que escondia as falhas do Swift Testing, e passou a filtrar a saída.
+- **Divisão após outros atos e fusão passiva:** o long press dividia só o último ato, então depois de sacudir a BubbleKey não se desmembrava. Agora `Composition.split` divide a última fusão ainda na tela em qualquer momento (o histórico guarda origens e sugestões de cada fusão). Palavras repetidas se fundem passivamente (`duplicates`, `absorbDuplicates`). Bolhas soltas voltam com força em curva suave (`Physics.Body.ramp`), e o transbordo tira primeiro as mais estreitas, mantendo as densas perto do centro.
+- **Vigia de ociosidade:** a composição podia ficar congelada fora dos anéis (fusão passiva cancelada no meio deixava o par “em fusão”; arrasto cancelado pelo sistema sem `onEnded`; seleção por toque esquecida). Corrigido o primeiro; `ContentView.watchdog` limpa atos presos sem dedo na tela após 1,5 s e solta a seleção após 4 s, com retorno suave. Não coberto por teste automático; conferir à mão.
+- **Raios de bolhas:** após desmembramentos em sequência as palavras brotavam do centro em poucas direções, os anéis giravam para segui-las e a palavra externa bloqueada recuava ao longo do raio, empilhando bolhas em raios estáveis. Agora ela desliza no próprio anel até um vão (`Ring.free`); teste `outerRingsInterleaveInsteadOfStackingInSpokes`.
+- **Colmeia orgânica:** os alvos por anel, recalculados a cada quadro a partir das posições, davam formas diferentes a cada interação (raios, vãos). Agora `Physics.layout` calcula uma colmeia de fileiras desencontradas uma vez por mudança, independente das posições (só escolhe o espelhamento que menos move), com zonas de dentro para fora, densas junto da BubbleKey e pares de fusão forte vizinhos (cargas opostas). `Physics.step` recebe os alvos prontos; a view refaz o layout quando muda o que ele usa (`LayoutInputs`). A luz das zonas continua desenhada por anéis (`zoneGap`) e só aproxima a colmeia.
+- **Reorganização local (decisão do autor, 17/10):** recalcular a colmeia inteira a cada mudança, com a nova BubbleKey no centro, fazia ~50 bolhas atravessarem a tela numa só fusão. Agora a colmeia completa só é montada na abertura, num novo canvas ou com bolha mais alta que as fileiras; depois `Physics.adapt` encaixa só as palavras novas onde nasceram, com as vizinhas da fileira abrindo espaço. A BubbleKey deixou de migrar ao centro (mudança de intenção pedida pelo autor). Long press 0,6 → 0,45 s e partida suave 0,7 → 0,45 s.
+- **Gravidade suave:** só com a reorganização local, os buracos de palavras que saíram espalhavam a estrutura. `Physics.compact` desce palavras para vagas livres mais perto da BubbleKey, de dentro para fora e em saltos curtos em cascata. Apontar para o centro fixo da colmeia deixava a BubbleKey na borda após desmembramentos, com todas as palavras de um lado; o salto curto evita que a colmeia grande atravesse a tela.
+- **Centralização em bloco:** a BubbleKey volta ao centro com a colmeia inteira deslizando junto (`Physics.recenter`), sem que nenhuma bolha troque de vizinho ou fileira. Restaura a intenção “o foco migra para o centro” sem o embaralhamento.
+- **Em aberto (decisão da equipe):** texto das fusões fraca e média; se a zona externa deve exigir sobreposição maior; som de erro, que deixa de ocorrer com a gramática; sugestões por associação (n-gram, `NLEmbedding`).
+
+## Próximo experimento: inserção posicional (`exp/insercao-posicional`)
+
+Proposta aprovada para outra sessão, ainda não iniciada. Parte de `exp/gramatica-procedural` (depende de `Grammar.swift`), que ainda não entrou na `main`.
+
+- **Ideia:** a posição do drag sobre a BubbleKey escolhe a fresta entre palavras onde a nova entra; a frase abre espaço ao vivo e se fecha ao afastar.
+- **Etapas:**
+  1. a gramática gera a frase como lista de palavras e aceita inserção numa posição escolhida;
+  2. a bolha desenha palavra por palavra (na mesma cápsula de vidro), mede cada uma e calcula a fresta sob o dedo, com histerese;
+  3. abertura animada da frase, integrada à física (`Physics.adapt`/`compact`) e à atmosfera;
+  4. acessibilidade (VoiceOver ajustável “no início / depois de … / no fim”, setas no teclado) e teste de interface soltando à esquerda e à direita da mesma bolha.
+- **Decisões a tomar antes de começar:**
+  - **decidido (autor, 17/10):** a ordem escolhida pelo usuário é final, e a gramática só conjuga. Ordens naturais contam como fusão forte e as demais como mais fraca (“Quero agora ir” fica assim);
+  - **decidido (autor, 17/10):** remover e reordenar palavras dentro da frase fica para depois das etapas 1–4. A remoção entra como **ato novo** no histórico, não como desfazer seletivo: o Undo continua linear e as sugestões já brotadas ficam. No gesto, segurar parado continua dividindo (com tensão); segurar e puxar uma palavra para fora da cápsula remove só aquela palavra.
+- **Requisito de hitbox (autor):** a área de cada palavra dentro da BubbleKey precisa ser calculada com precisão, para conciliar pegar ou inserir com o arrastar para desfazer:
+  - medir o frame real de cada palavra no layout de texto, e não estimar pela contagem de caracteres;
+  - dividir a cápsula sem zonas mortas, com a fronteira no meio do espaço entre palavras vizinhas e a altura inteira da cápsula, para que palavras curtas (“e”, “eu”) não fiquem com alvo minúsculo;
+  - para fora da cápsula, alvo mínimo de 44 pt, pensando em C.A.;
+  - separar segurar parado de puxar por um limiar de deslocamento, e a fresta de inserção por histerese;
+  - cobrir com testes de lógica as fronteiras dos alvos e os limiares, e com teste de interface o puxar para fora.
+- **Começar com:**
+  ```sh
+  git -C ~/dev/TesteMetaWord worktree add ../TesteMetaWord-wt-insercao-posicional -b exp/insercao-posicional exp/gramatica-procedural
+  ```
 
 ## Pendências
 

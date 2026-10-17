@@ -2,16 +2,16 @@ import CoreGraphics
 import Foundation
 
 /// Pure 2D physics for the organic composition. Bodies are capsule centers in canvas points.
-/// The focus (optical center) is pulled to the canvas center; every other word is pulled to a
-/// slot on the ring of its atmosphere zone (see `targets`), and repulsion keeps cells from
-/// touching. The view freezes the physics during a gesture and adds the idle orbit on top.
+/// Each word is pulled to its cell in an organic honeycomb around the focus (see `layout`),
+/// computed once per change; repulsion keeps cells from touching on the way. The view freezes the physics during a gesture and adds the idle orbit on top.
 enum Physics {
-    /// Resting gap between surfaces. Larger than the GlassEffectContainer spacing (32 pt),
-    /// so words never bridge at rest.
-    static let restGap: CGFloat = 40
+    /// Surfaces closer than this merge into one glass shape (the GlassEffectContainer spacing).
+    static let glassSpacing: CGFloat = 24
+    /// Resting gap between surfaces. Larger than `glassSpacing`, so words never bridge at rest.
+    static let restGap: CGFloat = 30
     static let stiffness: CGFloat = 150
-    /// Each zone sits one word layer (56 pt + rest gap) beyond the previous one.
-    static let zoneSpacing: CGFloat = 96
+    /// Each occupied zone sits one word layer (56 pt + rest gap) beyond the previous one.
+    static let zoneSpacing: CGFloat = 86
     /// Spring toward each word's target (slot or canvas center), close to critically damped.
     static let pull: CGFloat = 120
     static let damping: CGFloat = 18
@@ -26,10 +26,19 @@ enum Physics {
     struct Body: Equatable {
         var position: CGPoint
         var velocity = CGVector.zero
+        /// 0 → 1 after a release: the pull home grows along an ease-in curve, so a word let go at
+        /// the edge sets off gently, speeds up and settles, instead of snapping back.
+        var ramp: CGFloat = 1
     }
 
+    /// Time for the pull home to reach full strength after a release.
+    static let rampDuration: CGFloat = 0.45
+
     /// Target surface distance from the focus for atmosphere zone 1 (inner), 2 or 3 (outer).
-    static func zoneGap(_ zone: Int) -> CGFloat { restGap + CGFloat(zone - 1) * zoneSpacing }
+    /// Empty zones take no ring: an outer zone closes in on the focus when the inner ones empty.
+    static func zoneGap(_ zone: Int, occupied: Set<Int> = [1, 2, 3]) -> CGFloat {
+        restGap + CGFloat(occupied.count { $0 < zone }) * zoneSpacing
+    }
 
     static func rect(_ center: CGPoint, _ size: CGSize) -> CGRect {
         CGRect(x: center.x - size.width / 2, y: center.y - size.height / 2, width: size.width, height: size.height)
@@ -54,8 +63,8 @@ enum Physics {
         }.min { $0.distance < $1.distance }?.id
     }
 
-    /// Advances every body by `dt`. `zones` gives each non-focus word its atmosphere zone.
-    static func step(_ bodies: inout [UUID: Body], sizes: [UUID: CGSize], focus: UUID?, zones: [UUID: Int], center: CGPoint, bounds: CGRect, dt: CGFloat) {
+    /// Advances every body by `dt` toward its place in `targets` (see `layout`).
+    static func step(_ bodies: inout [UUID: Body], sizes: [UUID: CGSize], targets: [UUID: CGPoint], bounds: CGRect, dt: CGFloat) {
         let ids = Array(bodies.keys)
         var acceleration = Dictionary(uniqueKeysWithValues: ids.map { ($0, CGVector.zero) })
         for i in ids.indices {
@@ -70,9 +79,10 @@ enum Physics {
                 acceleration[b]! -= force
             }
         }
-        for (id, target) in targets(bodies, sizes: sizes, focus: focus, zones: zones, center: center) {
+        for (id, target) in targets where bodies[id] != nil {
             let p = bodies[id]!.position
-            acceleration[id]! += CGVector(dx: target.x - p.x, dy: target.y - p.y) * pull
+            let r = bodies[id]!.ramp
+            acceleration[id]! += CGVector(dx: target.x - p.x, dy: target.y - p.y) * (pull * r * r * (3 - 2 * r))
         }
         let decay = exp(-damping * dt)
         for (id, a) in acceleration {
@@ -90,39 +100,199 @@ enum Physics {
                 body.position = clamped
             }
             body.velocity = v
+            body.ramp = min(1, body.ramp + dt / rampDuration)
             bodies[id] = body
         }
     }
 
-    /// Where each word wants to be. The focus goes to the canvas center. Words of one zone get
-    /// evenly spaced angles around the focus, in their current angular order and rotated to move
-    /// them as little as possible; each slot sits at the zone's surface gap from the focus.
-    static func targets(_ bodies: [UUID: Body], sizes: [UUID: CGSize], focus: UUID?, zones: [UUID: Int], center: CGPoint) -> [UUID: CGPoint] {
-        guard let focus, let core = bodies[focus]?.position, let coreSize = sizes[focus] else { return [:] }
-        var targets = [focus: center]
-        for zone in Set(zones.values) {
-            let members = zones.keys
-                .filter { zones[$0] == zone && bodies[$0] != nil && sizes[$0] != nil }
-                .map { id in (id: id, angle: atan2(bodies[id]!.position.y - core.y, bodies[id]!.position.x - core.x)) }
-                .sorted { $0.angle < $1.angle }
-            let step = 2 * CGFloat.pi / CGFloat(members.count)
-            let offsets = members.enumerated().map { k, m in m.angle - step * CGFloat(k) }
-            let rotation = atan2(offsets.map { sin($0) }.reduce(0, +), offsets.map { cos($0) }.reduce(0, +))
-            for (k, member) in members.enumerated() {
-                let angle = rotation + step * CGFloat(k)
-                let direction = CGVector(dx: cos(angle), dy: sin(angle))
-                let size = sizes[member.id]!
-                // Bisection for the distance that leaves exactly the zone gap to the focus surface.
-                var near: CGFloat = 0, far: CGFloat = 2000
-                for _ in 0..<18 {
-                    let mid = (near + far) / 2
-                    let point = CGPoint(x: core.x + direction.dx * mid, y: core.y + direction.dy * mid)
-                    if signedDistance(rect(point, size), rect(core, coreSize)) < zoneGap(zone) { near = mid } else { far = mid }
-                }
-                targets[member.id] = CGPoint(x: core.x + direction.dx * far, y: core.y + direction.dy * far)
-            }
+    /// The rows of the honeycomb: where row 0 lies and how far apart rows are. Fixed between full
+    /// layouts, so local changes keep every other word in its row.
+    struct Grid: Equatable {
+        var origin: CGPoint
+        var rowHeight: CGFloat
+
+        init(origin: CGPoint, sizes: [UUID: CGSize]) {
+            self.origin = origin
+            rowHeight = (sizes.values.map(\.height).max() ?? 56) + restGap
         }
-        return targets
+
+        func row(_ y: CGFloat) -> Int { Int(((y - origin.y) / rowHeight).rounded()) }
+        func y(_ row: Int) -> CGFloat { origin.y + CGFloat(row) * rowHeight }
+    }
+
+    /// A local change of the honeycomb: every word in `cells` keeps its cell, except neighbours
+    /// that make way; each new word (in `births`, where it was born) settles in the nearest spot
+    /// that fits, either a free one or one opened by sliding its row neighbours outward just
+    /// enough, whichever disturbs less. Words far from the change never move. Widest words first,
+    /// so a fusion result takes the place of its origins before its suggestions bud around it.
+    static func adapt(cells: [UUID: CGPoint], births: [UUID: CGPoint], sizes: [UUID: CGSize], grid: Grid,
+                      bounds: CGRect, affinity: (UUID, UUID) -> Bool = { _, _ in false }) -> [UUID: CGPoint] {
+        var cells = cells
+        func spans(_ row: Int) -> [(id: UUID, lo: CGFloat, hi: CGFloat)] {
+            cells.compactMap { id, p in
+                guard grid.row(p.y) == row, let w = sizes[id]?.width else { return nil }
+                return (id, p.x - w / 2, p.x + w / 2)
+            }.sorted { $0.lo < $1.lo }
+        }
+        let newcomers = births.keys.filter { sizes[$0] != nil }.sorted {
+            (-sizes[$0]!.width, $0.uuidString) < (-sizes[$1]!.width, $1.uuidString)
+        }
+        for id in newcomers {
+            let want = births[id]!, half = sizes[id]!.width / 2
+            let home = grid.row(want.y)
+            var best: (cost: CGFloat, x: CGFloat, row: Int, moves: [UUID: CGFloat])?
+            for row in (home - 3)...(home + 3) {
+                let y = grid.y(row)
+                guard y > bounds.minY, y < bounds.maxY else { continue }
+                let taken = spans(row)
+                let rise = abs(y - want.y)
+                // A free spot: at the birth point or right beside a word of the row.
+                var free = [want.x]
+                for span in taken { free += [span.lo - restGap - half, span.hi + restGap + half] }
+                for x in free where x - half >= bounds.minX && x + half <= bounds.maxX
+                    && !taken.contains(where: { x - half < $0.hi + restGap - 0.5 && x + half > $0.lo - restGap + 0.5 }) {
+                    var cost = hypot(x - want.x, rise)
+                    let partners = cells.filter { other, p in
+                        abs(p.y - y) < grid.rowHeight * 1.5 && abs(p.x - x) < half + (sizes[other]?.width ?? 0) / 2 + restGap * 2 && affinity(id, other)
+                    }
+                    cost -= 45 * CGFloat(partners.count)
+                    if best == nil || cost < best!.cost { best = (cost, x, row, [:]) }
+                }
+                // A spot opened at the birth point: row neighbours slide outward just enough.
+                var moves: [UUID: CGFloat] = [:], edge = want.x + half
+                for span in taken where (span.lo + span.hi) / 2 >= want.x {
+                    let shift = max(0, edge + restGap - span.lo)
+                    if shift > 0 { moves[span.id] = shift }
+                    edge = span.hi + shift
+                }
+                edge = want.x - half
+                for span in taken.reversed() where (span.lo + span.hi) / 2 < want.x {
+                    let shift = max(0, span.hi - (edge - restGap))
+                    if shift > 0 { moves[span.id] = -shift }
+                    edge = span.lo - shift
+                }
+                let inside = moves.allSatisfy { id, dx in
+                    let p = cells[id]!, w = sizes[id]!.width / 2
+                    return p.x + dx - w >= bounds.minX && p.x + dx + w <= bounds.maxX
+                }
+                if inside, want.x - half >= bounds.minX, want.x + half <= bounds.maxX {
+                    let cost = rise + 0.6 * moves.values.reduce(0) { $0 + abs($1) }
+                    if best == nil || cost < best!.cost { best = (cost, want.x, row, moves) }
+                }
+            }
+            guard let best else { continue }
+            for (other, dx) in best.moves { cells[other]!.x += dx }
+            cells[id] = CGPoint(x: best.x, y: grid.y(best.row))
+        }
+        return cells
+    }
+
+    /// Gentle gravity toward `core` (the BubbleKey): the honeycomb closes around it after holes
+    /// open (a fusion, a split, an Undo), from the inside out. In order of distance to `core`, a
+    /// word hops into a free spot of a nearby row that is clearly closer to `core` (by `minGain`,
+    /// within `maxHop`), and the spot it leaves is there for the next one. Short hops in a cascade:
+    /// near the BubbleKey of a full honeycomb almost nothing moves; when the BubbleKey ends up at
+    /// the edge of the structure, words come round it a hop at a time instead of crossing over.
+    static let minGain: CGFloat = 30
+    static let maxHop: CGFloat = 260
+
+    static func compact(cells: [UUID: CGPoint], sizes: [UUID: CGSize], grid: Grid, toward core: CGPoint,
+                        fixed: UUID?, bounds: CGRect) -> [UUID: CGPoint] {
+        var cells = cells
+        for _ in 0..<6 {
+            var moved = false
+            let order = cells.keys.filter { $0 != fixed && sizes[$0] != nil }.sorted {
+                (hypot(cells[$0]!.x - core.x, cells[$0]!.y - core.y), $0.uuidString) < (hypot(cells[$1]!.x - core.x, cells[$1]!.y - core.y), $1.uuidString)
+            }
+            for id in order {
+                let here = cells[id]!, half = sizes[id]!.width / 2
+                let reach = hypot(here.x - core.x, here.y - core.y)
+                let home = grid.row(here.y)
+                var best: (distance: CGFloat, point: CGPoint)?
+                for row in (home - 2)...(home + 2) {
+                    let y = grid.y(row)
+                    let taken = cells.compactMap { other, p -> (lo: CGFloat, hi: CGFloat)? in
+                        guard other != id, grid.row(p.y) == row, let w = sizes[other]?.width else { return nil }
+                        return (p.x - w / 2, p.x + w / 2)
+                    }
+                    var spots = abs(row - grid.row(core.y)) % 2 == 0 ? [core.x] : [core.x - half - restGap / 2, core.x + half + restGap / 2]
+                    for span in taken { spots += [span.lo - restGap - half, span.hi + restGap + half] }
+                    for x in spots where x - half >= bounds.minX && x + half <= bounds.maxX
+                        && !taken.contains(where: { x - half < $0.hi + restGap - 0.5 && x + half > $0.lo - restGap + 0.5 }) {
+                        let p = CGPoint(x: x, y: y)
+                        let d = hypot(x - core.x, y - core.y)
+                        guard d < reach - minGain, hypot(x - here.x, y - here.y) <= maxHop else { continue }
+                        if best == nil || d < best!.distance { best = (d, p) }
+                    }
+                }
+                if let best {
+                    cells[id] = best.point
+                    moved = true
+                }
+            }
+            if !moved { break }
+        }
+        return cells
+    }
+
+    /// Centers the BubbleKey by sliding the whole honeycomb as one block: every cell and the rows
+    /// move by the same offset, so no word changes neighbours or row.
+    static func recenter(cells: [UUID: CGPoint], grid: Grid, focus: UUID?, center: CGPoint) -> (cells: [UUID: CGPoint], grid: Grid) {
+        guard let focus, let key = cells[focus] else { return (cells, grid) }
+        let dx = center.x - key.x, dy = center.y - key.y
+        var grid = grid
+        grid.origin = CGPoint(x: grid.origin.x + dx, y: grid.origin.y + dy)
+        return (cells.mapValues { CGPoint(x: $0.x + dx, y: $0.y + dy) }, grid)
+    }
+
+    /// Organic honeycomb around the focus, for a whole composition: at launch and when the canvas
+    /// changes size. Later changes are local (see `adapt`). The same words always give the same
+    /// pattern; only its density varies.
+    ///
+    /// The focus sits at `center`. Words lie in rows of capsules, `restGap` apart; odd rows split
+    /// at the center like offset brick courses, so neighbours nest as in a honeycomb. Zone by zone
+    /// (inner first) and widest first, each word takes the free spot nearest the center, leaning
+    /// toward a placed word it would make a full phrase with (`affinity`): complementary words
+    /// attract like opposite charges. The pattern never depends on where words are; of its four
+    /// mirror images, the one that moves the words least from `current` is used.
+    static func layout(sizes: [UUID: CGSize], focus: UUID?, zones: [UUID: Int], center: CGPoint,
+                       current: [UUID: CGPoint] = [:], affinity: (UUID, UUID) -> Bool = { _, _ in false }) -> [UUID: CGPoint] {
+        guard let focus, let focusSize = sizes[focus] else { return [:] }
+        let rowHeight = Grid(origin: center, sizes: sizes).rowHeight
+        var rows: [Int: [ClosedRange<CGFloat>]] = [0: [(center.x - focusSize.width / 2)...(center.x + focusSize.width / 2)]]
+        var targets = [focus: center]
+        let words = zones.keys.filter { $0 != focus && sizes[$0] != nil }.sorted {
+            (zones[$0]!, -sizes[$0]!.width, $0.uuidString) < (zones[$1]!, -sizes[$1]!.width, $1.uuidString)
+        }
+        let reach = max(2, Int((Double(words.count) / 2).squareRoot().rounded(.up)) + 2)
+        for id in words {
+            let half = sizes[id]!.width / 2
+            var best: (cost: CGFloat, row: Int, x: CGFloat)?
+            for row in -reach...reach {
+                let y = center.y + CGFloat(row) * rowHeight
+                let taken = rows[row] ?? []
+                var candidates = row % 2 == 0 ? [center.x] : [center.x - half - restGap / 2, center.x + half + restGap / 2]
+                for span in taken { candidates += [span.lowerBound - restGap - half, span.upperBound + restGap + half] }
+                for x in candidates where !taken.contains(where: { x - half < $0.upperBound + restGap - 0.5 && x + half > $0.lowerBound - restGap + 0.5 }) {
+                    var cost = hypot(x - center.x, y - center.y)
+                    let partners = targets.filter { other, p in
+                        abs(p.y - y) < rowHeight * 1.5 && abs(p.x - x) < half + sizes[other]!.width / 2 + restGap * 2 && affinity(id, other)
+                    }
+                    cost -= 45 * CGFloat(partners.count)
+                    if best == nil || cost < best!.cost { best = (cost, row, x) }
+                }
+            }
+            guard let best else { continue }
+            rows[best.row, default: []].append((best.x - half)...(best.x + half))
+            targets[id] = CGPoint(x: best.x, y: center.y + CGFloat(best.row) * rowHeight)
+        }
+        let mirrors = [(1, 1), (-1, 1), (1, -1), (-1, -1)].map { sx, sy in
+            targets.mapValues { CGPoint(x: center.x + CGFloat(sx) * ($0.x - center.x), y: center.y + CGFloat(sy) * ($0.y - center.y)) }
+        }
+        func travel(_ cells: [UUID: CGPoint]) -> CGFloat {
+            cells.reduce(0) { sum, cell in sum + (current[cell.key].map { hypot($0.x - cell.value.x, $0.y - cell.value.y) } ?? 0) }
+        }
+        return mirrors.min { travel($0) < travel($1) }!
     }
 
     private static func unit(from a: CGPoint, to b: CGPoint) -> CGVector {

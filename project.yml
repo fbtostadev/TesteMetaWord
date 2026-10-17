@@ -17,6 +17,9 @@ targets:
     platform: iOS
     sources:
       - path: TesteMetaWord
+      # Single source of the composition grammar, shared with the model dataset (ml/).
+      - path: ml/vocabulary.json
+        buildPhase: resources
     settings:
       base:
         TARGETED_DEVICE_FAMILY: "2"

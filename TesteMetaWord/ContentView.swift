@@ -4,14 +4,24 @@ import UIKit
 struct ContentView: View {
     @State private var composition = Composition()
     @State private var bodies: [UUID: Physics.Body] = [:]
+    /// Each word's cell in the honeycomb, the rows it lies on, and the canvas and sizes it was
+    /// made for. Changes are local; only a new canvas or a taller word lays it out again.
+    @State private var layout: [UUID: CGPoint] = [:]
+    @State private var grid: Physics.Grid?
+    @State private var layoutCanvas = CGSize.zero
+    @State private var layoutSizes: [UUID: CGSize] = [:]
     @State private var lastTick: Date?
     @State private var dragOrigin: CGPoint?
     @State private var fusionTask: Task<Void, Never>?
     @State private var fusingPair: MergePair?
+    @State private var passiveTask: Task<Void, Never>?
+    /// Idle watchdog: since when the physics has been held with no finger on the screen, and
+    /// whether a waiting tap selection has stopped holding it.
+    @State private var heldSince: TimeInterval?
+    @State private var selectionReleased = false
     @State private var showCalibration = false
-    @State private var atmosphereRenderer = AtmosphereRenderer.initial
+    /// The atmosphere shader draws once it has compiled; without it the canvas stays plain.
     @State private var metalReady = false
-    @State private var metalFailed = false
     @State private var ignoreTapUntil = Date.distantPast
     @Namespace private var glass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -19,7 +29,6 @@ struct ContentView: View {
     @ScaledMetric(relativeTo: .title3) private var fontSize = 20.0
     @State private var splitSound = SplitSound()
     @State private var sfx = Sfx()
-    @State private var soundsOn = true
     @State private var depthSound = DepthSound()
     /// The master bubble under a long press that will split it, and when the press began.
     @State private var tension: (id: UUID, start: TimeInterval)?
@@ -30,6 +39,7 @@ struct ContentView: View {
     @State private var pinch: Pinch?
     /// Chips whose finger outlived a pinch; ignored until every finger lifts.
     @State private var suppressed: Set<UUID> = []
+    @State private var shake = ShakeDetector()
 
     private var motion: Animation? { reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.82) }
     /// Births and removals: a quick spring for the budding, a plain dissolve with Reduce Motion.
@@ -41,6 +51,15 @@ struct ContentView: View {
         let canvas: CGSize
         var bounds: CGRect { CGRect(origin: .zero, size: canvas).insetBy(dx: 16, dy: 16) }
         var center: CGPoint { CGPoint(x: canvas.width / 2, y: canvas.height / 2) }
+    }
+
+    /// What the honeycomb depends on; any change reorders it.
+    struct LayoutInputs: Equatable {
+        let chips: [UUID]
+        let zones: [UUID: Int]
+        let focus: UUID?
+        let sizes: [UUID: CGSize]
+        let canvas: CGSize
     }
 
     /// One finger on each of two chips: which finger holds which chip, and where both started.
@@ -81,6 +100,9 @@ struct ContentView: View {
                     settleIfReduced(space)
                 }
             }
+            .onChange(of: LayoutInputs(chips: composition.chips.map(\.id), zones: composition.zones, focus: composition.focus, sizes: sizes, canvas: space.canvas), initial: true) {
+                relayout(space)
+            }
             .onChange(of: dynamicTypeSize) { cancel(space) }
             .onChange(of: composition.calibration) { cancel(space) }
         }
@@ -112,12 +134,7 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .task {
             await composition.refresh()
-            do {
-                try await AtmosphereFrame.zero.shader.compile(as: .shapeStyle)
-                metalReady = true
-            } catch {
-                metalFailed = true
-            }
+            metalReady = (try? await AtmosphereFrame.zero.shader.compile(as: .shapeStyle)) != nil
         }
         .onDisappear { fusionTask?.cancel() }
     }
@@ -127,21 +144,21 @@ struct ContentView: View {
             Color.clear.contentShape(Rectangle())
                 .onTapGesture { cancel(space) }
                 .accessibilityHidden(true)
-            AtmosphereView(
-                input: atmosphereInput(space, time: time),
-                renderer: atmosphereRenderer == .metal && metalReady ? .metal : .gradients
-            )
-            GlassEffectContainer(spacing: 32) {
+            if metalReady {
+                AtmosphereView(input: atmosphereInput(space, time: time))
+            }
+            GlassEffectContainer(spacing: Physics.glassSpacing) {
                 ZStack(alignment: .topLeading) {
                     ForEach(composition.chips) { chip in
                         ChipView(
                             chip: chip, size: space.sizes[chip.id] ?? .zero,
                             selected: composition.selected == chip.id || composition.activePair?.contains(chip.id) == true,
                             armed: composition.dropCandidate?.contains(chip.id) == true || composition.candidate?.contains(chip.id) == true,
-                            canUndo: composition.latestResult == chip.id,
+                            canUndo: composition.splittable == chip.id,
                             namespace: glass,
                             activate: { activate(chip.id, space) },
-                            undo: { undo(chip.id, space) }
+                            undo: { undo(chip.id, space) },
+                            derive: { derive(chip.id, space) }
                         )
                         .overlay {
                             Capsule().strokeBorder(.white.opacity(composition.dragging == chip.id || composition.pinching?.contains(chip.id) == true ? composition.resistance * 0.85 : 0), lineWidth: 2)
@@ -172,7 +189,6 @@ struct ContentView: View {
         .gesture(TouchTracker { touches = $0 })
         .onGeometryChange(for: CGPoint.self) { $0.frame(in: .global).origin } action: { canvasOrigin = $0 }
         .onChange(of: touches) { trackPinch(space) }
-        .onChange(of: soundsOn, initial: true) { sfx.muted = !soundsOn; splitSound.muted = !soundsOn; depthSound.muted = !soundsOn }
         .onChange(of: composition.depth) { _, depth in depthSound.update(depth: depth) }
         .onChange(of: composition.rejecting) { _, rejecting in
             if rejecting { sfx.play(.error) }
@@ -191,7 +207,7 @@ struct ContentView: View {
     /// Only the latest result divides, never in the middle of another act or with two fingers down.
     private func canSplit(_ id: UUID) -> Bool {
         fusingPair == nil && composition.dragging == nil && composition.pinching == nil
-            && touches.count <= 1 && !suppressed.contains(id) && composition.latestResult == id
+            && touches.count <= 1 && !suppressed.contains(id) && composition.splittable == id
     }
 
     /// Long-press tension on the master bubble. No tremor with Reduce Motion; the sound remains.
@@ -200,7 +216,7 @@ struct ContentView: View {
         return SplitTension.progress(since: tension.start, now: time)
     }
 
-    /// Both renderers consume the same snapshot. Geometry follows the visible surfaces;
+    /// The shader's snapshot. Geometry follows the visible surfaces;
     /// proximity still follows the logical distance used by the gesture, before membrane recoil.
     private func atmosphereInput(_ space: Space, time: TimeInterval) -> AtmosphereInput {
         let focus = composition.focus
@@ -284,13 +300,6 @@ struct ContentView: View {
         .multilineTextAlignment(.center)
     }
 
-    private var atmosphereStatus: String {
-        if atmosphereRenderer == .gradients { return "Gradientes ativos" }
-        if metalReady { return "Metal ativo" }
-        if metalFailed { return "Metal indisponível. Usando gradientes." }
-        return "Preparando Metal…"
-    }
-
     private var calibrationPanel: some View {
         @Bindable var state = composition
         return VStack(alignment: .leading, spacing: 22) {
@@ -299,24 +308,6 @@ struct ContentView: View {
                 Spacer()
                 Button("OK") { showCalibration = false }
             }
-            VStack(alignment: .leading, spacing: 8) {
-                LabeledContent("Atmosfera") {
-                    Picker("Atmosfera", selection: $atmosphereRenderer) {
-                        Text("Metal").tag(AtmosphereRenderer.metal)
-                        Text("Gradientes").tag(AtmosphereRenderer.gradients)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .accessibilityLabel("Atmosfera")
-                    .accessibilityIdentifier("atmosphere-renderer")
-                }
-                Text(atmosphereStatus)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("atmosphere-renderer-status")
-            }
-            Toggle("Sons", isOn: $soundsOn)
-                .accessibilityIdentifier("sounds-toggle")
             Text("Distância: \(Int(state.calibration.distance)) pt")
             Slider(value: $state.calibration.distance, in: 8...60, step: 1) { Text("Distância") }
             Button("Restaurar valores") { state.calibration = Calibration() }
@@ -365,52 +356,124 @@ struct ContentView: View {
     /// The composition holds still during the act (drag, selection, prepared pair, fusion);
     /// repulsion and the zones reorganize it only afterwards.
     private var isActing: Bool {
-        showCalibration || composition.dragging != nil || composition.selected != nil || composition.candidate != nil
-            || composition.pinching != nil || fusingPair != nil
+        let waiting = (composition.selected != nil || composition.candidate != nil) && !selectionReleased
+        return showCalibration || composition.dragging != nil || waiting || composition.pinching != nil || fusingPair != nil
+    }
+
+    /// Acts never leave the composition frozen. With no finger on the screen, an act left half
+    /// done (a drag or pinch whose end never arrived, a fusion that never finished) is cleared
+    /// after `staleAct`; a tap selection waiting for its partner stops holding the physics after
+    /// `selectionHold` and stays selected. Either way the words drift home gently.
+    private static let staleAct: TimeInterval = 1.5
+    private static let selectionHold: TimeInterval = 4
+
+    private func watchdog(_ now: TimeInterval, _ space: Space) {
+        guard isActing, touches.isEmpty, !showCalibration else {
+            heldSince = nil
+            if composition.selected == nil && composition.candidate == nil { selectionReleased = false }
+            return
+        }
+        let held = now - (heldSince ?? now)
+        if heldSince == nil { heldSince = now }
+        let stale = composition.dragging != nil || composition.pinching != nil || pinch != nil || fusingPair != nil
+        if stale, held > Self.staleAct {
+            cancel(space)
+            easeHome()
+        } else if !stale, held > Self.selectionHold {
+            selectionReleased = true
+            easeHome()
+        }
+    }
+
+    /// Every word sets off for home along the ease-in curve of a release.
+    private func easeHome() {
+        heldSince = nil
+        for id in bodies.keys { bodies[id]?.ramp = 0 }
     }
 
     private func tick(_ date: Date, _ space: Space) {
         defer { lastTick = date }
         if composition.dragging != nil { updateProximity(space, time: date.timeIntervalSinceReferenceDate) }
         if composition.pinching != nil { updatePinchProximity(space) }
+        watchdog(date.timeIntervalSinceReferenceDate, space)
         guard !reduceMotion, !isActing, let lastTick else { return }
         simulate(space, dt: min(1.0 / 30, date.timeIntervalSince(lastTick)))
     }
 
     private func simulate(_ space: Space, dt: CGFloat) {
-        Physics.step(&bodies, sizes: space.sizes, focus: composition.focus, zones: composition.zones, center: space.center, bounds: space.bounds, dt: dt)
+        Physics.step(&bodies, sizes: space.sizes, targets: layout, bounds: space.bounds, dt: dt)
+    }
+
+    /// Updates the honeycomb after a change. Locally, words keep their cells; new words (and words
+    /// that changed size) settle where they were born, and only their neighbours make way. A new
+    /// canvas, or a word taller than the rows, lays the whole honeycomb out again. Words whose cell
+    /// moved set off for it gently; complementary words (a strong fusion) attract.
+    private func relayout(_ space: Space) {
+        let affinity = { (a: UUID, b: UUID) in composition.strength(a, b) == 1 }
+        let kept = layout.filter { id, _ in space.sizes[id] != nil && space.sizes[id] == layoutSizes[id] }
+        let tallest = space.sizes.values.map(\.height).max() ?? 56
+        let next: [UUID: CGPoint]
+        if let grid, layoutCanvas == space.canvas, !kept.isEmpty, tallest + Physics.restGap <= grid.rowHeight + 0.5 {
+            let births = Dictionary(uniqueKeysWithValues: composition.chips.filter { kept[$0.id] == nil }
+                .map { ($0.id, bodies[$0.id]?.position ?? space.center) })
+            let adapted = births.isEmpty ? kept : Physics.adapt(cells: kept, births: births, sizes: space.sizes, grid: grid,
+                                                                bounds: space.bounds, affinity: affinity)
+            // The honeycomb closes around the BubbleKey, from the inside out; the BubbleKey keeps
+            // its place and words beyond the gravity's reach stay still.
+            let focus = composition.focus
+            let compacted = Physics.compact(cells: adapted, sizes: space.sizes, grid: grid,
+                                            toward: focus.flatMap { adapted[$0] } ?? grid.origin, fixed: focus, bounds: space.bounds)
+            // The BubbleKey returns to the center with the whole honeycomb, as one block.
+            let centered = Physics.recenter(cells: compacted, grid: grid, focus: composition.focus, center: space.center)
+            self.grid = centered.grid
+            next = centered.cells
+        } else {
+            grid = Physics.Grid(origin: space.center, sizes: space.sizes)
+            layoutCanvas = space.canvas
+            next = Physics.layout(sizes: space.sizes, focus: composition.focus, zones: composition.zones,
+                                  center: space.center, current: bodies.mapValues(\.position), affinity: affinity)
+        }
+        layoutSizes = space.sizes
+        for (id, cell) in next {
+            if let old = layout[id], hypot(old.x - cell.x, old.y - cell.y) < 8 { continue }
+            bodies[id]?.ramp = 0
+        }
+        layout = next
     }
 
     /// Reduce Motion: jump straight to equilibrium instead of animating the physics.
     private func settleIfReduced(_ space: Space) {
         guard reduceMotion, !isActing else { return }
+        relayout(space)
         for _ in 0..<240 { simulate(space, dt: 1.0 / 60) }
     }
 
     /// Runs a composition change and gives each new word a body. New words are born where the
     /// words they replace were: the one inheriting a removed glass identity stays at the core and
     /// the others bud out (fusion → suggestions, undo → the second origin).
-    private func apply(_ space: Space, quiet: Bool = false, _ change: () -> Void) {
+    private func apply(_ space: Space, sound: SfxCue? = .split, origin: CGPoint? = nil, _ change: () -> Void) {
         let before = composition.chips
         withAnimation(birth) { change() }
         let after = composition.chips
         let removed = before.filter { old in !after.contains { $0.id == old.id } }
         let added = after.filter { new in !before.contains { $0.id == new.id } }
-        // A fusion consumes the pair; an Undo consumes the result. The long-press split has its own sound.
-        if !added.isEmpty, !quiet { sfx.play(removed.count == 2 ? .fusion : .split) }
+        // Each caller names its sound: fusion, split (Undo, split, shake) or none (passive fusion,
+        // or the long-press burst that already marked the moment).
+        if !added.isEmpty, let sound { sfx.play(sound) }
         let core = added.first { new in removed.contains { $0.glassID == new.glassID } }
         let anchor = core.flatMap { core in removed.first { $0.glassID == core.glassID } }
         let removedPositions = removed.compactMap { bodies[$0.id]?.position }
         let centroid = removedPositions.isEmpty ? space.center : CGPoint(
             x: removedPositions.map(\.x).reduce(0, +) / CGFloat(removedPositions.count),
             y: removedPositions.map(\.y).reduce(0, +) / CGFloat(removedPositions.count))
-        let origin = anchor.flatMap { bodies[$0.id]?.position } ?? centroid
+        let origin = origin ?? anchor.flatMap { bodies[$0.id]?.position } ?? centroid
         for chip in removed { bodies[chip.id] = nil }
         if let seed = (core ?? added.first)?.id {
             bodies.merge(Physics.spawn(added.map(\.id), core: core?.id, at: origin, seed: seed)) { $1 }
         }
         settleIfReduced(space)
         Task { await composition.refresh() }
+        if !composition.duplicates.isEmpty { passiveFusion(space) }
     }
 
     // MARK: - Gestures
@@ -421,6 +484,8 @@ struct ContentView: View {
             confirmCandidate(pair, space)
             return
         }
+        selectionReleased = false
+        heldSince = nil
         withAnimation(motion) { composition.tap(id) }
         settleIfReduced(space)
     }
@@ -428,7 +493,7 @@ struct ContentView: View {
     /// Reverse mitosis: both origins converge to their midpoint, then the result is born there.
     private func confirmCandidate(_ pair: MergePair, _ space: Space) {
         guard !reduceMotion, let a = bodies[pair.source]?.position, let b = bodies[pair.target]?.position else {
-            apply(space) { composition.tap(pair.source) }
+            apply(space, sound: .fusion) { composition.tap(pair.source) }
             return
         }
         let center = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
@@ -440,7 +505,7 @@ struct ContentView: View {
         fusionTask = Task { @MainActor in
             do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
             guard composition.candidate == pair else { cancel(space); return }
-            apply(space) { composition.tap(pair.source) }
+            apply(space, sound: .fusion) { composition.tap(pair.source) }
             fusingPair = nil
             fusionTask = nil
         }
@@ -454,9 +519,11 @@ struct ContentView: View {
                 let now = Date().timeIntervalSinceReferenceDate
                 if composition.dragging != id {
                     dragOrigin = rendered(chip, space, time: now)
+                    shake = ShakeDetector()
                     composition.beginDrag(id)
                 }
                 moveDragged(id, translation: value.translation, space)
+                if shake.add(value.location, time: now) { return shakeOff(id, space) }
                 updateProximity(space, time: now)
             }
             .onEnded { value in
@@ -469,9 +536,29 @@ struct ContentView: View {
                 if let pair = composition.endDrag() {
                     confirmCandidate(pair, space)
                 } else {
+                    bodies[id]?.ramp = 0
                     settleIfReduced(space)
                 }
             }
+    }
+
+    /// The shaken bubble lets go where it is and buds related words; the rest of the drag is
+    /// ignored until the finger lifts.
+    private func shakeOff(_ id: UUID, _ space: Space) {
+        suppressed.insert(id)
+        dragOrigin = nil
+        bodies[id]?.ramp = 0
+        withAnimation(motion) { composition.cancel() }
+        derive(id, space)
+    }
+
+    /// Mitosis without fusion: the related words bud out of the bubble, which stays.
+    private func derive(_ id: UUID, _ space: Space) {
+        guard fusingPair == nil else { return }
+        let origin = bodies[id]?.position
+        var budded = false
+        apply(space, origin: origin) { budded = composition.derive(from: id) }
+        if !budded { sfx.play(.error) }
     }
 
     private func moveDragged(_ id: UUID, translation: CGSize, _ space: Space) {
@@ -557,11 +644,13 @@ struct ContentView: View {
     }
 
     private func finishPinch(_ space: Space) {
+        let held = composition.pinching
         dropPinch()
         ignoreTapUntil = Date().addingTimeInterval(0.3)
         if let pair = composition.endPinch() {
             confirmCandidate(pair, space)
         } else {
+            for id in [held?.source, held?.target].compactMap({ $0 }) { bodies[id]?.ramp = 0 }
             settleIfReduced(space)
         }
     }
@@ -591,6 +680,32 @@ struct ContentView: View {
         settleIfReduced(space)
     }
 
+    /// Passive fusion: once an act's new words have budded, each twin of a word already shown
+    /// glides into it and dissolves, so the canvas never shows one word twice.
+    private func passiveFusion(_ space: Space) {
+        passiveTask?.cancel()
+        let ids = composition.chips.map(\.id)
+        passiveTask = Task { @MainActor in
+            do { try await Task.sleep(for: .milliseconds(450)) } catch { return }
+            let pairs = composition.duplicates
+            guard composition.chips.map(\.id) == ids, fusingPair == nil, let first = pairs.first else { return }
+            if !reduceMotion {
+                withAnimation(.easeIn(duration: 0.25)) {
+                    fusingPair = MergePair(source: first.duplicate, target: first.keeper)
+                    for pair in pairs {
+                        if let p = bodies[pair.keeper]?.position { bodies[pair.duplicate] = Physics.Body(position: p) }
+                    }
+                }
+                // Release the pair even if cancelled: a pair left fusing would freeze the physics.
+                let glided = (try? await Task.sleep(for: .milliseconds(250))) != nil
+                fusingPair = nil
+                guard glided else { return }
+            }
+            guard composition.chips.map(\.id) == ids else { return }
+            apply(space, sound: nil) { composition.absorbDuplicates() }
+        }
+    }
+
     /// `quiet` skips the split chime when the long-press burst already marks the moment.
     private func undo(_ id: UUID?, _ space: Space, quiet: Bool = false) {
         dropPinch()
@@ -598,7 +713,9 @@ struct ContentView: View {
         fusionTask = nil
         fusingPair = nil
         dragOrigin = nil
-        apply(space, quiet: quiet) { composition.undo(from: id) }
+        apply(space, sound: quiet ? nil : .split) {
+            if let id { composition.split(id) } else { composition.undo() }
+        }
     }
 }
 

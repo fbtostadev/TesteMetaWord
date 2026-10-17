@@ -21,7 +21,13 @@ static float zoneLight(float2 p, float4 focus, float3 gaps, int zone) {
     float width = focus.w + max(0.0, focus.z - focus.w) * 0.45;
     float2 radius = max(float2(width + reach, focus.w + reach) * 0.5, float2(1.0));
     float r = length((p - focus.xy) / radius);
-    float inner = zone == 1 ? 0.12 : (focus.w * 0.5 + gaps[zone - 2] + 36.0) / radius.y;
+    // Empty zones take no ring: the innermost ring (gaps.x, the rest gap) starts at the focus,
+    // every other one after the nearest ring inside it.
+    float previous = gaps.x;
+    for (int i = 0; i < 3; i++) {
+        if (gaps[i] < gap - 0.5) { previous = max(previous, gaps[i]); }
+    }
+    float inner = gap <= gaps.x + 0.5 ? 0.12 : (focus.w * 0.5 + previous + 36.0) / radius.y;
     float peak = inner + (1.0 - inner) * 0.5;
     return smoothstep(inner, peak, r) * (1.0 - smoothstep(peak, 1.0, r));
 }
