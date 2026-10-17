@@ -112,7 +112,8 @@ enum Physics {
     /// the spare room shared evenly and the whole ring turned to move them as little as possible.
     /// Words that do not fit (the narrowest first, so text-dense words stay central) overflow to the next ring, so a crowded zone or
     /// a wide focus never pins words against each other. An outer ring also clears the words of
-    /// the inner ones: beside a wide focus they sit side by side, wider than the ring spacing.
+    /// the inner ones: a word whose spot is taken slides along its ring to a free one, so rings
+    /// interleave (beside a wide focus words sit side by side, wider than the ring spacing).
     static func targets(_ bodies: [UUID: Body], sizes: [UUID: CGSize], focus: UUID?, zones: [UUID: Int], center: CGPoint) -> [UUID: CGPoint] {
         guard let focus, let core = bodies[focus]?.position, let coreSize = sizes[focus] else { return [:] }
         var targets = [focus: center]
@@ -180,41 +181,73 @@ enum Physics {
         }
 
         /// Lays the words one after another from `start`, each the smallest turn after the previous
-        /// one that keeps `restGap` between them, plus `share`. `turn` runs back to the first word:
-        /// the ring closes when it is at most a full turn.
+        /// one that keeps `restGap` between them, plus `share`; a word whose spot is taken by a word
+        /// of an inner ring slides along the ring to the next free spot, so rings interleave instead
+        /// of stacking in spokes. `turn` runs back to the first word: the ring closes when it is at
+        /// most a full turn.
         private func walk(_ members: [UUID], from start: CGFloat, share: CGFloat, gap: CGFloat) -> (angles: [CGFloat], turn: CGFloat) {
-            guard members.count > 1 else { return ([start], 0) }
             let sized = members.map { sizes[$0]! }
-            var angles: [CGFloat] = [], a = start
+            let first = free(sized[0], from: start, gap: gap)
+            guard members.count > 1 else { return ([first], 0) }
+            var angles: [CGFloat] = [], a = first
             for k in members.indices {
+                if k > 0 { a = free(sized[k], from: a, gap: gap) }
                 angles.append(a)
                 let next = sized[(k + 1) % members.count]
-                let here = rect(point(sized[k], a, gap: gap), sized[k])
+                let here = rect(ringPoint(sized[k], a, gap: gap), sized[k])
                 var near: CGFloat = 0, far = CGFloat.pi
                 for _ in 0..<10 {
                     let mid = (near + far) / 2
-                    if signedDistance(here, rect(point(next, a + mid, gap: gap), next)) < restGap { near = mid } else { far = mid }
+                    if signedDistance(here, rect(ringPoint(next, a + mid, gap: gap), next)) < restGap { near = mid } else { far = mid }
                 }
                 a += far + share
             }
-            return (angles, a - start)
+            return (angles, a - first)
         }
 
-        /// Center of a word of `size` in direction `angle`, as close as it can be while leaving `gap` to the
-        /// focus surface and `restGap` to the words of inner rings. The focus gap is solved exactly
-        /// (capsules are horizontal segments with round caps); words of inner rings in the way push
-        /// the point outward along the same ray.
-        private func point(_ size: CGSize, _ angle: CGFloat, gap: CGFloat) -> CGPoint {
+        /// The first angle from `a` onward where a word of `size` on the ring clears the words of
+        /// inner rings: a coarse sweep, then bisection, so the spot moves smoothly with `a`.
+        private func free(_ size: CGSize, from a: CGFloat, gap: CGFloat) -> CGFloat {
+            func taken(_ angle: CGFloat) -> Bool {
+                let r = rect(ringPoint(size, angle, gap: gap), size)
+                return placed.contains { signedDistance(r, $0) < restGap }
+            }
+            guard taken(a) else { return a }
+            var near = a
+            for _ in 0..<105 {
+                let far = near + 0.06
+                guard taken(far) else {
+                    var low = near, high = far
+                    for _ in 0..<8 {
+                        let mid = (low + high) / 2
+                        if taken(mid) { low = mid } else { high = mid }
+                    }
+                    return high
+                }
+                near = far
+            }
+            return a
+        }
+
+        /// Center of a word of `size` on the ring in direction `angle`: exactly `gap` from the
+        /// focus surface (capsules are horizontal segments with round caps).
+        private func ringPoint(_ size: CGSize, _ angle: CGFloat, gap: CGFloat) -> CGPoint {
             let cx = abs(cos(angle)), cy = abs(sin(angle))
-            // Segment half-lengths and the center-line distance that leaves `gap` between surfaces.
             let span = max(0, size.width / 2 - size.height / 2) + max(0, coreSize.width / 2 - coreSize.height / 2)
             let reach = gap + size.height / 2 + coreSize.height / 2
             var t = cy > 0.0001 ? reach / cy : .infinity
             if t * cx > span { t = span * cx + sqrt(max(0, reach * reach - span * span * cy * cy)) }
-            func at(_ t: CGFloat) -> CGPoint { CGPoint(x: core.x + cos(angle) * t, y: core.y + sin(angle) * t) }
+            return CGPoint(x: core.x + cos(angle) * t, y: core.y + sin(angle) * t)
+        }
+
+        /// The ring point, or, when a whole ring is taken and a word stayed on a blocked spot,
+        /// the nearest point outward along the same ray that clears the inner words.
+        private func point(_ size: CGSize, _ angle: CGFloat, gap: CGFloat) -> CGPoint {
+            let base = ringPoint(size, angle, gap: gap)
+            func at(_ t: CGFloat) -> CGPoint { CGPoint(x: base.x + cos(angle) * t, y: base.y + sin(angle) * t) }
             func blocked(_ t: CGFloat) -> Bool { placed.contains { signedDistance(rect(at(t), size), $0) < restGap } }
-            guard blocked(t) else { return at(t) }
-            var near = t, far = t + 2000
+            guard blocked(0) else { return base }
+            var near: CGFloat = 0, far: CGFloat = 2000
             for _ in 0..<12 {
                 let mid = (near + far) / 2
                 if blocked(mid) { near = mid } else { far = mid }

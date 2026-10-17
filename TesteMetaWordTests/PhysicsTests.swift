@@ -143,4 +143,33 @@ struct PhysicsTests {
                                         (104, 2), (100, 2), (126, 3), (132, 3)]
         _ = settlesWithoutBridges(focusSize: CGSize(width: 560, height: 62), zones: layout)
     }
+
+    /// After splits, words bud from the focus in a few directions. Outer rings must interleave
+    /// with the inner ones instead of stacking behind them in spokes.
+    @Test func outerRingsInterleaveInsteadOfStackingInSpokes() {
+        let focus = UUID()
+        var sizes = [focus: CGSize(width: 200, height: 60)]
+        var zones: [UUID: Int] = [:]
+        var bodies = [focus: Physics.Body(position: center)]
+        let spokes: [CGFloat] = [-.pi / 2, 3.5, 0.7]
+        for zone in 1...3 {
+            for (k, angle) in spokes.enumerated() {
+                let id = UUID()
+                sizes[id] = CGSize(width: [130, 110, 120][k], height: 56)
+                zones[id] = zone
+                let r = 60 + CGFloat(zone) * 110
+                bodies[id] = Physics.Body(position: CGPoint(x: center.x + cos(angle) * r, y: center.y + sin(angle) * r))
+            }
+        }
+        for _ in 0..<900 {
+            Physics.step(&bodies, sizes: sizes, focus: focus, zones: zones, center: center, bounds: bounds, dt: 1.0 / 60)
+        }
+        for (id, zone) in zones {
+            #expect(abs(gap(bodies, sizes, id, focus) - Physics.zoneGap(zone)) < 12, "zone \(zone) sits on its own ring")
+        }
+        let ids = Array(sizes.keys)
+        for (i, a) in ids.enumerated() {
+            for b in ids[(i + 1)...] { #expect(gap(bodies, sizes, a, b) > Physics.glassSpacing, "no glass bridge at rest") }
+        }
+    }
 }
