@@ -76,7 +76,7 @@ Proposta aprovada para outra sessão, ainda não iniciada. Parte de `exp/gramati
   3. abertura animada da frase, integrada à física (`Physics.adapt`/`compact`) e à atmosfera;
   4. acessibilidade (VoiceOver ajustável “no início / depois de … / no fim”, setas no teclado) e teste de interface soltando à esquerda e à direita da mesma bolha.
 - **Decisões a tomar antes de começar:**
-  - a ordem escolhida pelo usuário é final ou a gramática corrige (“Quero agora ir” fica ou vira “Quero ir agora”)? Proposta: ordens naturais contam como fusão forte, as demais como mais fraca;
+  - **decidido (autor, 17/10):** a ordem escolhida pelo usuário é final, e a gramática só conjuga. Ordens naturais contam como fusão forte e as demais como mais fraca (“Quero agora ir” fica assim);
   - tirar uma palavra da frase desfaz só aquela palavra? Isso muda o Undo, que hoje volta um estado inteiro por vez.
 - **Começar com:**
   ```sh
