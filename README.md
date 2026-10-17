@@ -67,6 +67,8 @@ A comparação é visual e funcional no simulador. Desempenho, consumo e sensaç
 
 ## Validação do Metal: 16/10/2026
 
+Os caminhos `build/…` desta seção eram da worktree encerrada; os arquivos estão em `~/dev/TesteMetaWord-artifacts/metal-atmosphere`, fora do Git.
+
 - **Build:** `./scripts/build.sh` aprovado para iPadOS sem assinatura, com a biblioteca `default.metallib` no app. Projeto regenerado com XcodeGen. Apenas o aviso de metadados App Intents ignorados.
 - **Suíte completa:** 23 testes Swift Testing e 5 XCTest de interface aprovados no simulador dedicado “TesteMetaWord Atmosphere”, iPad Pro 13-inch (M5), iOS 26.4. Resultado: `build/atmosphere-compare-final.xcresult`.
 - **Percursos visuais:** três fusões reais em cada renderizador, troca de modo com preservação das palavras/corpos/Undo, rotação e resistência superficial. Na captura refinada, o primeiro arrasto segura 60% de sobreposição por 8 s, mantendo as duas palavras visíveis antes de soltar. Os 5 testes de interface passaram novamente em `build/atmosphere-verified.xcresult`.
@@ -74,18 +76,18 @@ A comparação é visual e funcional no simulador. Desempenho, consumo e sensaç
 - **Continuidade final:** a sequência revelou um halo deslocado enquanto o foco recém-fundido aguardava sua medição. A atmosfera passou a reter a geometria anterior nesse intervalo. Build aprovado novamente e percurso Metal com três fusões, A/B, rotação e Undo aprovado em `build/atmosphere-focus-continuity.xcresult`; a nova sequência de fusão mantém a luz junto aos chips.
 - **Instabilidade observada:** na execução `verified`, o teste existente `focusCentersAndEachZoneSettlesOnItsOwnRingWithoutGlassBridges` falhou com distância de 4,45 pt para um limite de 4 pt. O teste usa UUIDs e impulsos aleatórios; a física e esse teste não foram alterados. Os quatro testes de física passaram na repetição isolada (`build/physics-recheck.xcresult`). Essa instabilidade continua registrada, sem relaxar o limite do teste.
 
-Capturas inspecionadas em `build/`:
+Capturas inspecionadas (versionadas, reduzidas, em [docs/media/metal](docs/media/metal); originais PNG, sequências, logs e `.xcresult` arquivados fora do repositório em `~/dev/TesteMetaWord-artifacts/metal-atmosphere`, na máquina do autor):
 
 | Captura | Evidência |
 | --- | --- |
-| `atmosphere-initial-metal-rotation.png` | Repouso discreto e somente Zona 1 iluminada |
-| `atmosphere-armed-metal-verified-2.png` | Luz acompanha as superfícies eu/querer em sobreposição parcial armada |
-| `atmosphere-armed-gradients-verified-2.png` | Referência elíptica no mesmo estado de intenção |
-| `atmosphere-comparison-{metal,gradients}-rotation.png` | Mesma frase e composição nos dois modos; centro neutro com Zona 1 vazia |
-| `atmosphere-landscape-metal-rotation.png` | Frase longa e palavras periféricas completas em paisagem |
-| `atmosphere-undo-metal-rotation.png` | Retorno a “Eu quero comer” e recomposição das zonas |
-| `atmosphere-resistance-metal-verified.png` | Luz atenuada e separação visual durante pressão superficial |
-| `atmosphere-{fusion,split}-metal-focus-continuity-*.png` | Continuidade após fusão e Undo, com retenção da última geometria válida |
+| `atmosphere-initial-metal-rotation.jpg` | Repouso discreto e somente Zona 1 iluminada |
+| `atmosphere-armed-metal-verified-2.jpg` | Luz acompanha as superfícies eu/querer em sobreposição parcial armada |
+| `atmosphere-armed-gradients-verified-2.jpg` | Referência elíptica no mesmo estado de intenção |
+| `atmosphere-comparison-{metal,gradients}-rotation.jpg` | Mesma frase e composição nos dois modos; centro neutro com Zona 1 vazia |
+| `atmosphere-landscape-metal-rotation.jpg` | Frase longa e palavras periféricas completas em paisagem |
+| `atmosphere-undo-metal-rotation.jpg` | Retorno a “Eu quero comer” e recomposição das zonas |
+| `atmosphere-resistance-metal-verified.jpg` | Luz atenuada e separação visual durante pressão superficial |
+| `atmosphere-{fusion,split}-metal-focus-continuity-*.png` (só no arquivo externo) | Continuidade após fusão e Undo, com retenção da última geometria válida |
 
 A inspeção mostrou luz distribuída pelo contorno do par no Metal, queda suave sem degraus perceptíveis e canvas contínuo nas duas orientações. A diferença é localizada no gesto; o repouso mantém a referência noturna. Desempenho, consumo e sensação no iPad físico não foram medidos. Nenhum formatter/linter foi executado.
 
@@ -97,4 +99,5 @@ Branch `exp/pinca`, worktree `TesteMetaWord-wt-pinca`. Um dedo repousado sobre c
 - **Testes:** 33 Swift Testing (6 novos em `PinchTests`: armar e confirmar, soltar abaixo do limiar, desarmar ao afastar, par incompatível só com resistência, pinça substitui seleção/arrasto, bolha sob o dedo) e 8 XCTest de interface, todos aprovados. Os 7 testes de interface anteriores provam que o observador não quebrou arrasto, soltura superficial, atmosfera, troca de renderizador e long press.
 - **Dois dedos reais:** `testTwoFingersOnOneBubbleDoNotPinchOrSplit` faz uma pinça de ~1,5 s sobre o resultado da fusão: nenhuma pinça começa (dois dedos na mesma bolha) e o long press não divide.
 - **Limite do XCTest:** `pinch(withScale:)` pousa os dois dedos na diagonal da moldura de um único elemento (medido no passo 0: cerca de 94%/4% e 10%/80% da largura/altura). Como as posições das bolhas variam a cada abertura, não há teste automatizado confiável da pinça entre duas bolhas. Exceção registrada à regra de validar o gesto inteiro em teste de interface.
-- **Pendente (validação manual):** no simulador (Option mostra dois dedos; Shift+Option move o ponto médio), pinçar querer + ir até armar e soltar; pinçar sem armar; par incompatível (eu + brincar); dois dedos parados sobre o resultado por mais de 1 s. No iPad físico: dedos reais, terceiro dedo, dedo que sobra após a fusão, folga entre dedos em chips largos e pequenos.
+- **Simulador (validação manual do autor, 16/10/2026):** pinça entre duas bolhas funcional (Option mostra dois dedos; Shift+Option move o ponto médio). Divisão por long press com tremor, som e estalo também conferida.
+- **Pendente no iPad físico:** dedos reais, terceiro dedo, dedo que sobra após a fusão, folga entre dedos em chips largos e pequenos.
