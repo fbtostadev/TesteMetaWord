@@ -3,23 +3,52 @@ import XCTest
 @MainActor final class DropMergeTests: XCTestCase {
     /// Attachments cover occupied/empty inner zones and Undo. The marker lets a host-side
     /// simctl capture run while XCTest holds the actual drag down for eight seconds.
+    override func setUp() async throws {
+        continueAfterFailure = false
+        await MainActor.run { XCUIDevice.shared.orientation = .portrait }
+    }
+
     func testAtmosphereThroughThreeDragsAndUndo() {
+        atmospherePath(renderer: "metal", compareAndRotate: true)
+    }
+
+    func testRendererSwitchPreservesInitialWords() {
         let app = XCUIApplication()
         app.launch()
         XCTAssertTrue(app.buttons["chip-querer"].waitForExistence(timeout: 5))
+        let chips = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "chip-"))
+        let initial = Set(chips.allElementsBoundByIndex.map(\.identifier))
+        XCTAssertEqual(initial.count, 6)
+        selectRenderer("gradients", in: app)
+        selectRenderer("metal", in: app)
+        XCTAssertEqual(Set(chips.allElementsBoundByIndex.map(\.identifier)), initial)
+        XCTAssertFalse(app.buttons["Desfazer"].isEnabled)
+    }
+
+    func testGradientAtmosphereThroughThreeDragsAndUndo() {
+        atmospherePath(renderer: "gradients", compareAndRotate: false)
+    }
+
+    private func atmospherePath(renderer: String, compareAndRotate: Bool) {
+        print("ATMOSPHERE_MODE=\(renderer)")
+        let app = XCUIApplication()
+        app.launchArguments = ["--atmosphere-renderer=\(renderer)"]
+        app.launch()
+        selectRenderer(renderer, in: app)
+        XCTAssertTrue(app.buttons["chip-querer"].waitForExistence(timeout: 5))
         sleep(2)
-        capture(app, name: "atmosphere-initial")
+        capture(app, name: "atmosphere-initial-\(renderer)")
 
         let source = app.buttons["chip-eu"]
         let target = app.buttons["chip-querer"]
         print("ATMOSPHERE_CAPTURE_ARMED_BEGIN")
-        drag(source, to: target, in: app, hold: 8)
+        drag(source, to: target, in: app, hold: 8, penetration: 0.60)
         print("ATMOSPHERE_CAPTURE_ARMED_END")
         let first = app.buttons["chip-Eu quero"]
         XCTAssertTrue(first.waitForExistence(timeout: 5))
         guard first.exists else { return }
         sleep(2)
-        capture(app, name: "atmosphere-first-fusion")
+        capture(app, name: "atmosphere-first-fusion-\(renderer)")
 
         drag(app.buttons["chip-comer"], to: first, in: app)
         let second = app.buttons["chip-Eu quero comer"]
@@ -34,7 +63,32 @@ import XCTest
         XCTAssertTrue(app.buttons["chip-ali"].exists)
         sleep(2)
         assertSeparatedFromFocus(phrase, in: app)
-        capture(app, name: "atmosphere-long-phrase")
+        capture(app, name: "atmosphere-long-phrase-\(renderer)")
+
+        if compareAndRotate {
+            let chips = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "chip-")).allElementsBoundByIndex
+            let before = Dictionary(uniqueKeysWithValues: chips.map { ($0.identifier, $0.frame) })
+            selectRenderer("gradients", in: app)
+            XCTAssertTrue(phrase.exists)
+            XCTAssertTrue(app.buttons["Desfazer"].isEnabled)
+            let after = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "chip-")).allElementsBoundByIndex
+            XCTAssertEqual(Set(before.keys), Set(after.map(\.identifier)))
+            for chip in after {
+                let old = before[chip.identifier]!
+                XCTAssertLessThan(hypot(old.midX - chip.frame.midX, old.midY - chip.frame.midY), 24,
+                                  "Trocar o desenho deve preservar os corpos")
+            }
+            capture(app, name: "atmosphere-comparison-gradients")
+            selectRenderer("metal", in: app)
+            capture(app, name: "atmosphere-comparison-metal")
+            XCUIDevice.shared.orientation = .landscapeLeft
+            print("ATMOSPHERE_CAPTURE_LANDSCAPE_BEGIN")
+            sleep(2)
+            assertSeparatedFromFocus(phrase, in: app)
+            capture(app, name: "atmosphere-landscape-metal")
+            XCUIDevice.shared.orientation = .portrait
+            sleep(2)
+        }
 
         print("ATMOSPHERE_CAPTURE_UNDO_BEGIN")
         app.buttons["Desfazer"].tap()
@@ -45,16 +99,47 @@ import XCTest
         XCTAssertFalse(app.buttons["chip-ali"].exists)
         sleep(2)
         assertSeparatedFromFocus(second, in: app)
-        capture(app, name: "atmosphere-undo")
+        capture(app, name: "atmosphere-undo-\(renderer)")
+    }
+
+    private func selectRenderer(_ renderer: String, in app: XCUIApplication) {
+        app.buttons["Calibração"].tap()
+        let picker = app.buttons["atmosphere-renderer"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 3))
+        picker.tap()
+        app.buttons[renderer == "metal" ? "Metal" : "Gradientes"].tap()
+        capture(app, name: "atmosphere-panel-\(renderer)")
+        let status = app.staticTexts["atmosphere-renderer-status"]
+        let ready = NSPredicate(format: "label == %@", renderer == "metal" ? "Metal ativo" : "Gradientes ativos")
+        expectation(for: ready, evaluatedWith: status)
+        waitForExpectations(timeout: 10)
+        app.buttons["OK"].tap()
     }
 
     /// Native glass can change accessibility frames while surfaces join. Resolve both points
     /// before the gesture and keep them in the app's coordinate space through release.
-    private func drag(_ source: XCUIElement, to target: XCUIElement, in app: XCUIApplication, hold: TimeInterval = 0) {
+    private func drag(_ source: XCUIElement, to target: XCUIElement, in app: XCUIApplication,
+                      hold: TimeInterval = 0, penetration: CGFloat? = nil) {
         let a = source.frame, b = target.frame, bounds = app.frame
         let origin = app.coordinate(withNormalizedOffset: .zero)
         let start = origin.withOffset(CGVector(dx: a.midX - bounds.minX, dy: a.midY - bounds.minY))
-        let end = origin.withOffset(CGVector(dx: b.midX - bounds.minX, dy: b.midY - bounds.minY))
+        var point = CGPoint(x: b.midX, y: b.midY)
+        if let penetration {
+            // Keep both words visible in the armed capture, instead of burying one at the
+            // other's center. Sixty percent leaves margin above the 45% gesture threshold.
+            let length = max(1, hypot(a.midX - b.midX, a.midY - b.midY))
+            let direction = CGVector(dx: (a.midX - b.midX) / length, dy: (a.midY - b.midY) / length)
+            var near: CGFloat = 0, far = length
+            for _ in 0..<20 {
+                let mid = (near + far) / 2
+                let moved = CGRect(x: b.midX + direction.dx * mid - a.width / 2,
+                                   y: b.midY + direction.dy * mid - a.height / 2,
+                                   width: a.width, height: a.height)
+                if capsuleGap(moved, b) < -penetration * min(a.height, b.height) { near = mid } else { far = mid }
+            }
+            point = CGPoint(x: b.midX + direction.dx * far, y: b.midY + direction.dy * far)
+        }
+        let end = origin.withOffset(CGVector(dx: point.x - bounds.minX, dy: point.y - bounds.minY))
         start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: hold)
     }
 
@@ -68,7 +153,8 @@ import XCTest
     }
 
     private func capture(_ app: XCUIApplication, name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        // App snapshots can retain the portrait crop during rotation; capture the display.
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
@@ -80,7 +166,7 @@ import XCTest
         let source = app.buttons["chip-querer"]
         let target = app.buttons["chip-ir"]
         XCTAssertTrue(source.waitForExistence(timeout: 5))
-        source.press(forDuration: 0.05, thenDragTo: target)
+        drag(source, to: target, in: app)
         let result = app.buttons["chip-Quero ir"]
         XCTAssertTrue(result.waitForExistence(timeout: 5), "Soltar sobre ir deve gerar Quero ir sem outro toque")
         guard result.exists else { return }
@@ -125,7 +211,9 @@ import XCTest
         let origin = source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         let destination = app.coordinate(withNormalizedOffset: .zero).withOffset(
             CGVector(dx: to.x + direction.dx * far - app.frame.minX, dy: to.y + direction.dy * far - app.frame.minY))
-        origin.press(forDuration: 0.05, thenDragTo: destination)
+        print("ATMOSPHERE_MODE=metal")
+        print("ATMOSPHERE_CAPTURE_RESISTANCE_BEGIN")
+        origin.press(forDuration: 0.05, thenDragTo: destination, withVelocity: .slow, thenHoldForDuration: 4)
         XCTAssertFalse(app.buttons["chip-Quero ir"].waitForExistence(timeout: 1))
         XCTAssertTrue(source.exists)
         XCTAssertTrue(target.exists)

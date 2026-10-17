@@ -9,6 +9,9 @@ struct ContentView: View {
     @State private var fusionTask: Task<Void, Never>?
     @State private var fusingPair: MergePair?
     @State private var showCalibration = false
+    @State private var atmosphereRenderer = AtmosphereRenderer.initial
+    @State private var metalReady = false
+    @State private var metalFailed = false
     @State private var ignoreTapUntil = Date.distantPast
     @Namespace private var glass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -35,7 +38,7 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 toolbar(space)
                 ScrollView {
-                    TimelineView(.animation(paused: reduceMotion && composition.dragging == nil)) { context in
+                    TimelineView(.animation(paused: showCalibration || (reduceMotion && composition.dragging == nil))) { context in
                         canvas(space, time: context.date.timeIntervalSinceReferenceDate)
                             .onChange(of: context.date) { _, date in tick(date, space) }
                     }
@@ -87,9 +90,16 @@ struct ContentView: View {
             .accessibilityHidden(true)
         }
         .preferredColorScheme(.dark)
-        .task { await composition.refresh() }
+        .task {
+            await composition.refresh()
+            do {
+                try await AtmosphereFrame.zero.shader.compile(as: .shapeStyle)
+                metalReady = true
+            } catch {
+                metalFailed = true
+            }
+        }
         .onDisappear { fusionTask?.cancel() }
-        .popover(isPresented: $showCalibration) { calibrationPanel }
     }
 
     private func canvas(_ space: Space, time: TimeInterval) -> some View {
@@ -97,7 +107,10 @@ struct ContentView: View {
             Color.clear.contentShape(Rectangle())
                 .onTapGesture { cancel(space) }
                 .accessibilityHidden(true)
-            atmosphere(space)
+            AtmosphereView(
+                input: atmosphereInput(space, time: time),
+                renderer: atmosphereRenderer == .metal && metalReady ? .metal : .gradients
+            )
             GlassEffectContainer(spacing: 32) {
                 ZStack(alignment: .topLeading) {
                     ForEach(composition.chips) { chip in
@@ -133,57 +146,39 @@ struct ContentView: View {
         .coordinateSpace(name: "canvas")
     }
 
-    /// Only occupied zones emit light. Outer fields have a clear interior, so an empty
-    /// inner zone stays neutral. The compressed width is visual only; physics keeps full sizes.
-    private func atmosphere(_ space: Space) -> some View {
-        let size = composition.focus.flatMap { space.sizes[$0] } ?? CGSize(width: 56, height: 56)
-        let occupied = Set(composition.zones.values).sorted()
-        let focusEngaged = composition.focus.map { focus in
-            composition.dragging == focus || composition.selected == focus
-                || composition.activePair?.contains(focus) == true || fusingPair?.contains(focus) == true
+    /// Both renderers consume the same snapshot. Geometry follows the visible surfaces;
+    /// proximity still follows the logical distance used by the gesture, before membrane recoil.
+    private func atmosphereInput(_ space: Space, time: TimeInterval) -> AtmosphereInput {
+        let focus = composition.focus
+        let focusRect = focus.flatMap { id in
+            bodies[id].flatMap { body in space.sizes[id].map { Physics.rect(body.position, $0) } }
+        } ?? .zero
+        let engaged = focus.map { id in
+            composition.dragging == id || composition.selected == id
+                || composition.activePair?.contains(id) == true || fusingPair?.contains(id) == true
         } ?? false
-        return ZStack(alignment: .topLeading) {
-            if let focus = composition.focus, let core = bodies[focus]?.position {
-                ForEach(occupied, id: \.self) { zone in
-                    let reach = 2 * (Physics.zoneGap(zone) + 68)
-                    let inner = zone == 1 ? 0.12 : (size.height / 2 + Physics.zoneGap(zone - 1) + 36) / ((size.height + reach) / 2)
-                    EllipticalGradient(gradient: Gradient(stops: [
-                        .init(color: .clear, location: 0),
-                        .init(color: .clear, location: inner),
-                        .init(color: .white.opacity(0.55), location: inner + (1 - inner) * 0.3),
-                        .init(color: .white, location: inner + (1 - inner) * 0.5),
-                        .init(color: .white.opacity(0.45), location: inner + (1 - inner) * 0.75),
-                        .init(color: .clear, location: 1)
-                    ]), endRadiusFraction: 0.5)
-                    .frame(width: size.height + max(0, size.width - size.height) * 0.45 + reach,
-                           height: size.height + reach)
-                    .opacity(zone == 1 ? (focusEngaged ? 0.085 : 0.06) : zone == 2 ? 0.035 : 0.022)
-                    .position(core)
-                    .transition(.opacity)
-                }
+        var pair: AtmosphereInput.Pair?
+        if let active = composition.activePair,
+           let source = composition.chips.first(where: { $0.id == active.source }),
+           let target = composition.chips.first(where: { $0.id == active.target }),
+           let sourceSize = space.sizes[source.id], let targetSize = space.sizes[target.id],
+           let logicalSource = bodies[source.id]?.position {
+            func visibleRect(_ chip: WordChip, _ size: CGSize) -> CGRect {
+                let point = rendered(chip, space, time: time)
+                let offset = membraneOffset(chip, space, time: time)
+                return Physics.rect(CGPoint(x: point.x + offset.width, y: point.y + offset.height), size)
             }
-
-            if let pair = composition.activePair,
-               let a = bodies[pair.source]?.position, let b = bodies[pair.target]?.position {
-                let armed = composition.dropCandidate != nil || composition.candidate != nil
-                EllipticalGradient(colors: [.white, .white.opacity(0.45), .clear], endRadiusFraction: 0.5)
-                    .frame(width: min(240, max(size.height * 2, abs(a.x - b.x) + 100)),
-                           height: min(180, max(100, abs(a.y - b.y) + 80)))
-                    .opacity((armed ? 0.13 : 0.055) * (1 - composition.resistance * 0.55))
-                    .position(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
-                    .transition(.opacity)
-            }
+            let logicalGap = Physics.signedDistance(
+                Physics.rect(logicalSource, sourceSize),
+                Physics.rect(rendered(target, space, time: time), targetSize))
+            pair = AtmosphereInput.Pair(
+                id: active, source: visibleRect(source, sourceSize), target: visibleRect(target, targetSize),
+                logicalGap: logicalGap, distance: composition.calibration.distance,
+                armed: composition.dropCandidate != nil || composition.candidate != nil,
+                resistance: composition.resistance)
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: composition.focus)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: occupied)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: size)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: focusEngaged)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: composition.activePair)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: composition.dropCandidate)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: composition.resistance)
-        .transaction { if reduceMotion { $0.animation = nil } }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+        return AtmosphereInput(focusID: focus, focus: focusRect,
+                               occupied: Set(composition.zones.values), focusEngaged: engaged, pair: pair)
     }
 
     private func toolbar(_ space: Space) -> some View {
@@ -206,6 +201,7 @@ struct ContentView: View {
             }
             .buttonStyle(.glass)
             .accessibilityLabel("Calibração")
+            .popover(isPresented: $showCalibration) { calibrationPanel }
         }
         .padding(.horizontal, 24)
         .padding(.top, 12)
@@ -233,6 +229,13 @@ struct ContentView: View {
         .multilineTextAlignment(.center)
     }
 
+    private var atmosphereStatus: String {
+        if atmosphereRenderer == .gradients { return "Gradientes ativos" }
+        if metalReady { return "Metal ativo" }
+        if metalFailed { return "Metal indisponível. Usando gradientes." }
+        return "Preparando Metal…"
+    }
+
     private var calibrationPanel: some View {
         @Bindable var state = composition
         return VStack(alignment: .leading, spacing: 22) {
@@ -240,6 +243,22 @@ struct ContentView: View {
                 Text("Calibração").font(.title2.bold())
                 Spacer()
                 Button("OK") { showCalibration = false }
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                LabeledContent("Atmosfera") {
+                    Picker("Atmosfera", selection: $atmosphereRenderer) {
+                        Text("Metal").tag(AtmosphereRenderer.metal)
+                        Text("Gradientes").tag(AtmosphereRenderer.gradients)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .accessibilityLabel("Atmosfera")
+                    .accessibilityIdentifier("atmosphere-renderer")
+                }
+                Text(atmosphereStatus)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("atmosphere-renderer-status")
             }
             Text("Distância: \(Int(state.calibration.distance)) pt")
             Slider(value: $state.calibration.distance, in: 8...60, step: 1) { Text("Distância") }
@@ -288,7 +307,7 @@ struct ContentView: View {
     /// The composition holds still during the act (drag, selection, prepared pair, fusion);
     /// repulsion and the zones reorganize it only afterwards.
     private var isActing: Bool {
-        composition.dragging != nil || composition.selected != nil || composition.candidate != nil || fusingPair != nil
+        showCalibration || composition.dragging != nil || composition.selected != nil || composition.candidate != nil || fusingPair != nil
     }
 
     private func tick(_ date: Date, _ space: Space) {
