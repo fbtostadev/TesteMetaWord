@@ -43,6 +43,17 @@ enum Physics {
         return hypot(horizontal, a.midY - b.midY) - ar - br
     }
 
+    /// The chip whose capsule contains `point`; where capsules overlap, the nearest center wins.
+    static func hit(_ point: CGPoint, centers: [UUID: CGPoint], sizes: [UUID: CGSize]) -> UUID? {
+        centers.compactMap { id, center -> (id: UUID, distance: CGFloat)? in
+            guard let size = sizes[id] else { return nil }
+            let radius = size.height / 2
+            let along = max(0, abs(point.x - center.x) - max(0, size.width / 2 - radius))
+            guard hypot(along, point.y - center.y) <= radius else { return nil }
+            return (id, hypot(point.x - center.x, point.y - center.y))
+        }.min { $0.distance < $1.distance }?.id
+    }
+
     /// Advances every body by `dt`. `zones` gives each non-focus word its atmosphere zone.
     static func step(_ bodies: inout [UUID: Body], sizes: [UUID: CGSize], focus: UUID?, zones: [UUID: Int], center: CGPoint, bounds: CGRect, dt: CGFloat) {
         let ids = Array(bodies.keys)

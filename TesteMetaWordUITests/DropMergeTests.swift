@@ -179,6 +179,27 @@ import XCTest
         XCTAssertFalse(app.buttons["Desfazer"].isEnabled)
     }
 
+    /// XCTest lands both pinch fingers inside one element, so this covers a real two-finger
+    /// gesture where both fingers rest on the same bubble: no pinch, no fusion, no split.
+    /// A pinch across two bubbles is validated by hand (see README).
+    func testTwoFingersOnOneBubbleDoNotPinchOrSplit() {
+        let app = XCUIApplication()
+        app.launch()
+        let source = app.buttons["chip-querer"]
+        XCTAssertTrue(source.waitForExistence(timeout: 5))
+        source.press(forDuration: 0.05, thenDragTo: app.buttons["chip-ir"])
+        let result = app.buttons["chip-Quero ir"]
+        XCTAssertTrue(result.waitForExistence(timeout: 5))
+        guard result.exists else { return }
+        sleep(2)
+        let count = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "chip-")).count
+        result.pinch(withScale: 0.6, velocity: -0.5)
+        sleep(1)
+        XCTAssertTrue(result.exists, "Dois dedos não devem dividir o resultado")
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "chip-")).count, count)
+        XCTAssertTrue(app.buttons["Desfazer"].isEnabled)
+    }
+
     /// A word that is not the latest result has nothing to split.
     func testLongPressOnAnIndivisibleWordKeepsTheComposition() {
         let app = XCUIApplication()
