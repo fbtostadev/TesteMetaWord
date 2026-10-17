@@ -8,7 +8,7 @@ Canvas escuro com cápsulas de Liquid Glass nativo em um único GlassEffectConta
 
 A disposição não é uma grade fixa: é uma grid circular organizada pela relevância ao contexto.
 
-**Centro óptico (foco).** O foco é o resultado da fusão mais recente; sem fusão (ou após desfazer todas), é a palavra com mais fusões fortes entre as presentes (inicialmente “querer”). Na abertura o foco fica no centro do canvas. Depois, o resultado nasce e fica onde a fusão aconteceu: a composição se reorganiza só em volta da mudança (ver *Colmeia orgânica*), sem levar o foco ao centro, o que moveria todas as bolhas.
+**Centro óptico (foco).** O foco é o resultado da fusão mais recente; sem fusão (ou após desfazer todas), é a palavra com mais fusões fortes entre as presentes (inicialmente “querer”). O foco fica no centro do canvas. O resultado nasce onde a fusão aconteceu, a composição se reorganiza só em volta da mudança (ver *Colmeia orgânica*) e então a colmeia inteira desliza como um bloco até o foco voltar ao centro: todas as bolhas se movem juntas, sem trocar de vizinho nem de fileira.
 
 **Três zonas de atmosfera.** Toda palavra se funde com qualquer outra, de qualquer zona; o resultado vira o novo foco. A zona de cada palavra é a força da sua fusão com o foco:
 
@@ -36,6 +36,7 @@ Cada palavra é um corpo em uma física 2D:
 - **Colmeia orgânica:** na abertura (e quando o canvas muda de tamanho, ou surge uma bolha mais alta que as fileiras) a composição inteira é montada num só padrão: a BubbleKey no centro e as palavras em fileiras de cápsulas a 30 pt umas das outras, com as fileiras ímpares divididas no centro, desencontradas meia célula como favos; zona por zona (a interna primeiro) e das mais largas às mais estreitas, cada palavra toma a vaga livre mais próxima do centro (`Physics.layout`).
 - **Reorganização local:** depois disso cada bolha mantém a sua vaga e as fileiras ficam fixas (`Physics.Grid`). Numa fusão, desmembramento, agitação ou Undo, cada palavra nova nasce onde a mudança aconteceu e ocupa o lugar livre mais próximo — ou abre um lugar ali, empurrando para fora só as vizinhas da mesma fileira, o que perturbar menos. Bolhas longe da mudança não se movem (`Physics.adapt`).
 - **Gravidade suave:** buracos deixados por palavras que saíram não espalham a estrutura. Depois de cada mudança, de dentro para fora, uma palavra com uma vaga livre pelo menos 30 pt mais perto do centro da colmeia, a um salto de até 220 pt, desce para ela, e a vaga que deixa fica para a próxima. A gravidade aponta para o centro fixo da colmeia (não para a BubbleKey, que muda de lugar), então uma colmeia sem buracos fica parada; a BubbleKey mantém a sua vaga (`Physics.compact`).
+- **Centralização em bloco:** por fim, todas as vagas e as fileiras se deslocam pelo mesmo vetor até a BubbleKey ficar no centro do canvas (`Physics.recenter`), com a mesma partida suave; a estrutura não muda.
 - **Cargas opostas:** uma palavra prefere a vaga vizinha de uma palavra já posicionada com que forma frase completa (fusão forte); pares complementares ficam lado a lado.
 - **Reordenação suave:** cada palavra cuja vaga mudou parte para a nova com a curva do retorno suave; a repulsão só protege o caminho.
 - **Vigia de ociosidade:** a composição nunca fica congelada. Sem nenhum dedo na tela, um ato deixado pela metade (arrasto ou pinça cujo fim não chegou, fusão que não terminou) é limpo após 1,5 s; uma seleção por toque esperando o par deixa de segurar a física após 4 s e continua selecionada (um novo toque volta a segurar). Nos dois casos as palavras voltam aos poucos, com a curva do retorno suave.
@@ -101,7 +102,7 @@ No máximo duas bolhas: um terceiro dedo é ignorado; dois dedos na mesma bolha 
 
 Após confirmar, as origens convergem por 0,2 s ao ponto médio. O resultado nasce nesse ponto, preservando a identidade de vidro da primeira origem; os textos das origens se dissolvem enquanto o texto do resultado surge, sem cápsula vazia. Gestos ficam bloqueados só durante a convergência.
 
-As sugestões brotam de dentro do resultado: nascem no mesmo ponto, com escala reduzida, e recebem impulsos radiais em direções distintas e intensidades levemente diferentes. A ponte de vidro se estica e se rompe enquanto elas se afastam. Em seguida, o resultado vira o novo foco no lugar das origens, as sugestões ocupam as vagas livres mais próximas e só as vizinhas abrem espaço; as zonas são recalculadas e a luz das atmosferas acompanha o novo foco.
+As sugestões brotam de dentro do resultado: nascem no mesmo ponto, com escala reduzida, e recebem impulsos radiais em direções distintas e intensidades levemente diferentes. A ponte de vidro se estica e se rompe enquanto elas se afastam. Em seguida, o resultado vira o novo foco no lugar das origens, as sugestões ocupam as vagas livres mais próximas e só as vizinhas abrem espaço; a colmeia desliza em bloco até o foco ficar no centro; as zonas são recalculadas e a luz das atmosferas acompanha o novo foco.
 
 ## Sacudir (derivação)
 

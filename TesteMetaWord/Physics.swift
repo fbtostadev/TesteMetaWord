@@ -235,6 +235,16 @@ enum Physics {
         return cells
     }
 
+    /// Centers the BubbleKey by sliding the whole honeycomb as one block: every cell and the rows
+    /// move by the same offset, so no word changes neighbours or row.
+    static func recenter(cells: [UUID: CGPoint], grid: Grid, focus: UUID?, center: CGPoint) -> (cells: [UUID: CGPoint], grid: Grid) {
+        guard let focus, let key = cells[focus] else { return (cells, grid) }
+        let dx = center.x - key.x, dy = center.y - key.y
+        var grid = grid
+        grid.origin = CGPoint(x: grid.origin.x + dx, y: grid.origin.y + dy)
+        return (cells.mapValues { CGPoint(x: $0.x + dx, y: $0.y + dy) }, grid)
+    }
+
     /// Organic honeycomb around the focus, for a whole composition: at launch and when the canvas
     /// changes size. Later changes are local (see `adapt`). The same words always give the same
     /// pattern; only its density varies.

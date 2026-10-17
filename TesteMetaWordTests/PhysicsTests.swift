@@ -230,4 +230,17 @@ struct PhysicsTests {
             }
         }
     }
+
+    /// The BubbleKey goes back to the center with the whole honeycomb, as one block.
+    @Test func recenteringSlidesTheHoneycombAsOneBlock() {
+        let key = UUID(), a = UUID(), b = UUID()
+        let cells = [key: CGPoint(x: 900, y: 588), a: CGPoint(x: 760, y: 588), b: CGPoint(x: 830, y: 676)]
+        let grid = Physics.Grid(origin: center, sizes: [key: CGSize(width: 140, height: 58)])
+        let moved = Physics.recenter(cells: cells, grid: grid, focus: key, center: center)
+        #expect(moved.cells[key] == center)
+        for (p, q) in [(key, a), (key, b), (a, b)] {
+            #expect(abs(distance(moved.cells[p]!, moved.cells[q]!) - distance(cells[p]!, cells[q]!)) < 0.001, "no word changes neighbours")
+        }
+        #expect(moved.grid.row(moved.cells[b]!.y) - moved.grid.row(moved.cells[key]!.y) == grid.row(cells[b]!.y) - grid.row(cells[key]!.y), "nor rows")
+    }
 }
