@@ -104,10 +104,21 @@ Enquanto o dedo segura o resultado da última fusão (a bolha mestre divisível)
 
 - **Tremor visual:** deslocamento trêmulo com amplitude crescente (progresso², até 2,5 pt) e leve inchaço até 1,04×. A órbita idle para nessa bolha enquanto ela é pressionada.
 - **Som tremular:** tom grave e suave com tremolo cuja frequência e volume crescem até o fim do long press.
-- **Estouro:** ao completar 0,6 s, um estalo curto (cerca de 90 ms, timbre de bolha) toca no mesmo instante da divisão, que segue o Undo descrito acima.
+- **Divisão:** ao completar 0,6 s, a nota de divisão (ver *Sons de fundo*) toca no mesmo instante da divisão, que segue o Undo descrito acima.
 - **Desistência:** soltar antes de 0,6 s ou começar a arrastar encerra tremor e som em cerca de 40 ms, sem estouro e sem mudança na composição.
 - **Indivisível:** segurar uma bolha que não é o resultado da última fusão não produz tensão.
-- O som usa a categoria de áudio ambiente: respeita o modo silencioso e se mistura a outros áudios. Os sons são sintetizados no app (`SplitTension.swift`), sem arquivos de áudio.
+- O som usa a categoria de áudio ambiente: respeita o modo silencioso e se mistura a outros áudios. Os sons são sintetizados no app (`SplitTension.swift` e `Sfx.swift`), sem arquivos de áudio nem serviço remoto.
+### Sons de fundo
+
+Os sons são discretos por princípio: acompanham a interação sem chamar atenção em quem usa o app o dia inteiro. Por isso só os momentos raros, que mudam algo, têm som. Gestos frequentes (tocar, arrastar, aproximar, armar) ficam em silêncio e têm feedback só visual.
+
+- **Fusão:** uma nota grave e macia (ré, 0,3 s) ao confirmar.
+- **Divisão:** a mesma nota descendo (0,25 s), no Undo pelo botão `<` e na divisão por long press.
+- **Erro:** um único toc surdo (0,16 s, sem sobretons) quando uma pinça incompatível encosta e a membrana resiste. O toque A → B incompatível não soa, pois só troca a seleção.
+- Nível baixo: pico de 0,03–0,04 por nota, tremor em até 0,09. Intervalo mínimo entre repetições de 0,4 s (fusão e divisão) e 1 s (erro). Escala pentatônica de ré em registro grave, sem harmônicos agudos.
+- **Interruptor "Sons"** na calibração, ligado por padrão; silencia também o tremor e a divisão. Vale só na sessão.
+- Sons sintetizados por funções puras (`SfxSynth`); a sensação continua exigindo escuta no simulador ou no iPad.
+
 - **Háptico:** o iPad não tem Taptic Engine, então o dedo não sente háptico; o som substitui esse retorno. Háptico fica pendente até haver um dispositivo-alvo que vibre.
 
 ## Movimento reduzido
@@ -116,7 +127,7 @@ Sem órbita, impulso, pulso ou recuo espacial. Cada mudança calcula o equilíbr
 
 ## Calibração
 
-Popover com escolha Metal/Gradientes, indicação do renderizador ativo e distância de aproximação 8–60 pt (default 24). Alterações cancelam a interação atual. Valores apenas em memória.
+Popover com escolha Metal/Gradientes, indicação do renderizador ativo, interruptor de sons (ligado por padrão) e distância de aproximação 8–60 pt (default 24). Alterações cancelam a interação atual. Valores apenas em memória.
 
 ## Validação
 
