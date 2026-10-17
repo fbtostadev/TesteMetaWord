@@ -47,10 +47,12 @@ Na worktree `TesteMetaWord-wt-metal-atmosphere`, branch `exp/metal-atmosphere`, 
 
 Worktree `TesteMetaWord-wt-gramatica-procedural`. A tabela de regras escrita à mão em `Vocabulary.swift` foi substituída por `Grammar.swift`, porte da classe `Grammar` de `ml/build_dataset.py`. Ela lê `ml/vocabulary.json`, que passa a ser recurso do app (via `project.yml`) e fonte única para o app e o dataset. A API de `Vocabulary` e o contrato `CompositionEngine`/`Lexicon` não mudaram.
 
-- **Cobertura:** 49 palavras e 4.992 frases; antes, 41 pares. Entram sujeitos você/nós, negação, modais precisar/poder/gostar, verbos dormir/ver/ouvir/tomar banho, complementos e tempos hoje/amanhã. Essas palavras só aparecem como sugestões; as iniciais não mudaram.
-- **Paridade:** os 41 resultados da tabela anterior são mantidos. Quatro sugestões mudaram (ver `SPEC.md`), o que levou o percurso visual a usar Eu quero comer + **mais** no lugar de + agora. A captura “long-phrase” deixa de mostrar a Zona 1 vazia.
-- **Testes:** 44 Swift Testing (5 novos em `GrammarTests`) e 8 XCTest de interface aprovados no simulador iPad Pro 13-inch (M5) (`build/gramatica-full.xcresult`). Não validado no iPad físico nem por escuta ou inspeção visual das novas frases.
-- **Em aberto (decisão da equipe):** zonas como grau de associação em vez de binárias; frase + frase; sugestões por associação (n-gram, `NLEmbedding`) em vez de listas fixas.
+- **Cobertura:** 49 palavras; 4.992 frases fortes (antes, 41 pares). Entram sujeitos você/nós, negação, modais precisar/poder/gostar, verbos dormir/ver/ouvir/tomar banho, complementos, tempos hoje/amanhã, lugares e interjeições. As palavras iniciais não mudaram.
+- **Fusão total:** qualquer palavra, de qualquer zona, se funde com qualquer outra, e o resultado vira o foco. A zona passa a ser a força da fusão com o foco: 1 forte (frase da gramática), 2 média (telegráfica ou reparada, “Eu brinco”), 3 fraca (coordenada, “Quero ir e comer”). `Vocabulary.Combination.strength` carrega a força; `Composition` recebe o léxico inicial por parâmetro, para testar motores que omitam pares (a pinça incompatível só existe nesse caso).
+- **Paridade:** as fusões fortes mantêm os 41 resultados da tabela anterior. Quatro sugestões mudaram (ver `SPEC.md`), o que levou o percurso visual a usar Eu quero comer + **mais** no lugar de + agora; a captura “long-phrase” deixa de mostrar a Zona 1 vazia.
+- **Testes:** 46 Swift Testing e 9 XCTest de interface aprovados no simulador iPad Pro 13-inch (M5) (`build/fusao-total.xcresult` e o novo `testOuterZoneWordFusesWithTheFocus`, que arrasta uma palavra da zona externa sobre o foco). Não validado no iPad físico nem por leitura das novas frases com fonoaudiólogos.
+- **Divergência com `ml/`:** `vocabulary.json` ganhou `present`, `places` e `interjections`, lidos só pelo app. O dataset (`build_dataset.py`) ainda trata as fusões média e fraca como inválidas; o modelo precisa de nova rodada antes de virar `LocalModelEngine`.
+- **Em aberto (decisão da equipe):** texto das fusões fraca e média; se a zona externa deve exigir sobreposição maior; som de erro, que deixa de ocorrer com a gramática; sugestões por associação (n-gram, `NLEmbedding`).
 
 ## Pendências
 

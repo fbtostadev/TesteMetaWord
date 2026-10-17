@@ -8,15 +8,15 @@ Canvas escuro com cápsulas de Liquid Glass nativo em um único GlassEffectConta
 
 A disposição não é uma grade fixa: é uma grid circular organizada pela relevância ao contexto.
 
-**Centro óptico (foco).** O foco é o resultado da fusão mais recente; sem fusão (ou após desfazer todas), é a palavra que combina com mais palavras presentes (inicialmente “querer”). O foco é atraído para o centro do canvas: o resultado nasce onde a fusão aconteceu e migra para o centro.
+**Centro óptico (foco).** O foco é o resultado da fusão mais recente; sem fusão (ou após desfazer todas), é a palavra com mais fusões fortes entre as presentes (inicialmente “querer”). O foco é atraído para o centro do canvas: o resultado nasce onde a fusão aconteceu e migra para o centro.
 
-**Três zonas de atmosfera.** Cada outra palavra pertence a uma zona, calculada a partir do vocabulário local:
+**Três zonas de atmosfera.** Toda palavra se funde com qualquer outra, de qualquer zona; o resultado vira o novo foco. A zona de cada palavra é a força da sua fusão com o foco:
 
 | Zona | Critério | Distância-alvo da superfície do foco |
 | --- | --- | --- |
-| 1 · interna | combina diretamente com o foco (vínculo semântico e gramatical forte) | 40 pt (encosta no foco) |
-| 2 · média | combina com outra palavra presente, não com o foco | 136 pt (uma camada adiante) |
-| 3 · externa | nenhuma combinação disponível | 232 pt |
+| 1 · interna | fusão forte: forma uma frase da gramática (“Quero ir”) | 40 pt (encosta no foco) |
+| 2 · média | fusão média: as posições se encaixam, mas a frase é telegráfica ou reparada (“Eu brinco”, “Dor, aqui”) | 136 pt (uma camada adiante) |
+| 3 · externa | fusão fraca: as posições colidem e os textos se coordenam (“Quero ir e comer”) | 232 pt |
 
 Quanto mais perto do foco, maior a probabilidade de fusão; a interação principal acontece na zona interna. Campos elípticos de luz branca, com queda suave e transparência no interior e na borda, desenham somente as zonas ocupadas em `composition.zones`. A Zona 1 tem a maior intensidade. Se estiver vazia, o centro fica neutro mesmo com zonas externas ocupadas.
 
@@ -50,16 +50,24 @@ Inicialmente: querer (foco), ir, comer, beber, eu, brincar, que brotam do centro
 | Quero ir + agora | Quero ir agora | perto / longe |
 | Quero ir + depois | Quero ir depois | hoje / amanhã |
 
-As combinações vêm de uma **gramática procedural** (`TesteMetaWord/Grammar.swift`) lida de `ml/vocabulary.json`, o mesmo arquivo que gera o dataset do modelo. Uma frase é uma moldura de posições, `[sujeito] [não] modal verbo [complemento | quantidade] [tempo]`, e cada palavra ocupa uma posição:
+As combinações vêm de uma **gramática procedural** (`TesteMetaWord/Grammar.swift`) lida de `ml/vocabulary.json`, o mesmo arquivo que gera o dataset do modelo. Uma frase é uma moldura de posições, `[interjeição,] [sujeito] [não] [modal] [verbo] [complemento | quantidade] [tempo] [lugar]`, e cada palavra ocupa uma posição:
 
 - **sujeitos:** eu, você, nós; **negação:** não; **modais:** querer, precisar, poder, gostar (“gosto de”);
 - **verbos:** ir, comer, beber, brincar, dormir, ver, ouvir, tomar banho, cada um com seus complementos; comer e beber aceitam quantidade (mais, menos);
 - **tempos:** agora, depois, hoje, amanhã;
-- **palavras extras** (aqui, ali, perto, longe, sim, obrigado, ajuda, dor) não ocupam posição e não se combinam.
+- **lugares:** aqui, ali, perto, longe; **interjeições:** sim, obrigado, ajuda, dor.
 
-Dois textos se fundem quando pelo menos um é uma palavra, as posições não colidem e a moldura resultante é uma frase válida: tem modal, e complemento ou tempo exigem verbo, com complemento próprio desse verbo. Duas frases não se fundem. Sem sujeito, a frase fica na primeira pessoa; o sujeito conjuga o modal (“nós” + “Não preciso” → “Nós não precisamos”). As sugestões preenchem o que falta: após sujeito e modal, ir/brincar; após negação, ir/comer; após o verbo, as do verbo; após complemento ou quantidade, agora/depois; após o tempo, perto/longe ou hoje/amanhã em ir, aqui/ali nos demais.
+Quaisquer dois textos diferentes se fundem, com uma de três forças:
 
-A gramática reproduz o resultado das 41 regras da tabela anterior. Quatro sugestões mudaram para seguir o verbo também com sujeito: Eu quero + comer → mais/menos; Eu quero ir + agora → perto/longe; Eu quero ir + depois → hoje/amanhã. Pares fora da gramática não geram texto arbitrário. Sugestões já presentes não são duplicadas. Palavras sem combinação continuam manipuláveis.
+1. **Forte:** as posições não colidem e a moldura é uma frase da gramática do dataset: tem modal, não tem interjeição nem lugar, e complemento ou tempo exigem verbo, com complemento próprio desse verbo. Duas frases também se fundem assim (“Eu quero” + “Comer agora” → “Eu quero comer agora”).
+2. **Média:** as posições não colidem, mas a frase sai do padrão. Sem modal, o verbo se conjuga para o sujeito explícito (“eu” + “brincar” → “Eu brinco”) ou fica no infinitivo (“Comer agora”); modal sem verbo aceita complemento ou tempo (“Quero agora”, “Gosto de água”); complemento de outro verbo é aceito (“Quero beber pão”); lugar vem no fim (“Quero ir longe”); interjeição prefixa com vírgula (“Sim, quero ir”). O resultado continua com suas posições e pode virar forte depois.
+3. **Fraca:** as posições colidem ou um texto já é resultado fraco. Os dois se coordenam com “e” (“Quero comer” + “beber” → “Quero comer e beber”; “Quero ir agora” + “depois” → “Quero ir agora e depois”). Lê primeiro a interjeição (com vírgula), depois o resultado fraco anterior, depois a ordem das posições. Tempo, lugar ou complemento após um resultado fraco entram sem “e” (“Quero comer e beber agora”).
+
+Sem sujeito, a frase fica na primeira pessoa; o sujeito conjuga o modal (“nós” + “Não preciso” → “Nós não precisamos”). As sugestões preenchem o que falta: após sujeito e modal, ir/brincar; após negação, ir/comer; após o verbo, as do verbo; após complemento ou quantidade, agora/depois; após o tempo, perto/longe ou hoje/amanhã em ir, aqui/ali nos demais. Na fusão fraca, sugere a frase que vem primeiro.
+
+As fusões fortes reproduzem as 41 regras da tabela anterior. Quatro sugestões mudaram para seguir o verbo também com sujeito: Eu quero + comer → mais/menos; Eu quero ir + agora → perto/longe; Eu quero ir + depois → hoje/amanhã. A conjugação sem modal (`present`), os lugares e as interjeições estão em `ml/vocabulary.json`, mas o dataset do modelo (`ml/build_dataset.py`) ainda só conhece as fusões fortes. Sugestões já presentes não são duplicadas.
+
+O par incompatível continua previsto para motores que omitam um par (por exemplo, um modelo local); com a gramática, só textos iguais não se fundem.
 
 ## Gestos e recuperação
 
@@ -141,4 +149,4 @@ Popover com escolha Metal/Gradientes, indicação do renderizador ativo, interru
 
 ## Validação
 
-Swift Testing: vocabulário, confirmação, armar/desarmar, cancelamento, Undo, foco e zonas de relevância, física (foco no centro, zonas ordenadas, ausência de pontes em repouso, nascimento) e órbita. Testes de interface arrastam e soltam sobre alvos reais, observam o resultado sem toque adicional e conferem Undo, soltura superficial e long press (divide o resultado; não divide uma palavra indivisível). A pinça é testada na lógica (armar, desarmar, soltar, par incompatível, bolha sob o dedo) e, na interface, com dois dedos reais sobre a mesma bolha (sem pinça nem divisão); o XCTest não posiciona dois dedos em elementos diferentes, então a pinça entre duas bolhas é validada à mão no simulador e no iPad. A curva do tremor e a forma dos sons são testadas como funções puras; o que se ouve e se sente exige escuta no simulador ou no iPad. Nos dois modos, o percurso eu + querer → Eu quero + comer → Eu quero comer + mais → Eu quero comer mais (sugestões agora/depois, na Zona 1) registra o estado inicial, a primeira fusão, a frase longa e Undo. A gramática é testada contra a tabela anterior (resultados e as quatro sugestões alteradas), contra combinações novas e contra molduras inválidas. Durante o primeiro arrasto, XCTest mantém 60% de sobreposição e a pressão por 8 s para captura externa do estado armado por `simctl` (`scripts/capture-atmosphere.py`). A comparação na mesma sessão verifica preservação dos corpos, composição e Undo; rotação verifica o canvas com frase longa. A soltura superficial inclui pressão mantida para captura da resistência. Build e testes não provam a sensação da física nem o desempenho no iPad físico.
+Swift Testing: vocabulário, confirmação, armar/desarmar, cancelamento, Undo, foco e zonas de relevância, física (foco no centro, zonas ordenadas, ausência de pontes em repouso, nascimento) e órbita. Testes de interface arrastam e soltam sobre alvos reais, observam o resultado sem toque adicional e conferem Undo, soltura superficial e long press (divide o resultado; não divide uma palavra indivisível). A pinça é testada na lógica (armar, desarmar, soltar, par incompatível, bolha sob o dedo) e, na interface, com dois dedos reais sobre a mesma bolha (sem pinça nem divisão); o XCTest não posiciona dois dedos em elementos diferentes, então a pinça entre duas bolhas é validada à mão no simulador e no iPad. A curva do tremor e a forma dos sons são testadas como funções puras; o que se ouve e se sente exige escuta no simulador ou no iPad. Nos dois modos, o percurso eu + querer → Eu quero + comer → Eu quero comer + mais → Eu quero comer mais (sugestões agora/depois, na Zona 1) registra o estado inicial, a primeira fusão, a frase longa e Undo. A gramática é testada contra a tabela anterior (fusões fortes e as quatro sugestões alteradas) e nas três forças. Um teste de interface arrasta comer, da zona externa após Quero ir, sobre o foco (→ Quero ir e comer), funde agora no resultado e desfaz as duas fusões. Durante o primeiro arrasto, XCTest mantém 60% de sobreposição e a pressão por 8 s para captura externa do estado armado por `simctl` (`scripts/capture-atmosphere.py`). A comparação na mesma sessão verifica preservação dos corpos, composição e Undo; rotação verifica o canvas com frase longa. A soltura superficial inclui pressão mantida para captura da resistência. Build e testes não provam a sensação da física nem o desempenho no iPad físico.
