@@ -10,8 +10,11 @@
 		133BD7D4C4C0FD22AB466A46 /* DropMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5158270BCE4B63D5C57BB8B /* DropMergeTests.swift */; };
 		1C9ACC56493EDCC53C2BBC08 /* TesteMetaWordApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C7C945DA538B953D63B07FB /* TesteMetaWordApp.swift */; };
 		441D23E0D0F273F50D44C050 /* PhysicsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2C681D14CABAD742AFFE2F /* PhysicsTests.swift */; };
+		50D20214182AA11AB8938A32 /* AtmosphereTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE40EB3EC5FE28E6F2A0627 /* AtmosphereTests.swift */; };
+		6EEBD6CA832929A8B821DD04 /* Atmosphere.metal in Sources */ = {isa = PBXBuildFile; fileRef = 82448A2C4655DB610D579422 /* Atmosphere.metal */; };
 		8E3C844D64A96607F96A37F9 /* Vocabulary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 833A34B599762B2669F7E20D /* Vocabulary.swift */; };
 		92F44AAA890A3ABB2AAFAD62 /* CompositionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A13B7BED96173B00C8567EE /* CompositionEngine.swift */; };
+		99DFA67258E39A15A4DF99BE /* AtmosphereView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6C68151EA1F5914B5D4D27E /* AtmosphereView.swift */; };
 		A62B4637511A7ABE12832CE2 /* Physics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101BD15CA0217C8780B855DE /* Physics.swift */; };
 		E2441FC276AE1D4BB2750D7E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8F844CFEA394E51847A4FB5 /* ContentView.swift */; };
 		E60E749FEED77BBC50213C68 /* CompositionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 407C486BBE6896E013E72904 /* CompositionTests.swift */; };
@@ -40,13 +43,16 @@
 		09A035A5A7FDC790E3521AA7 /* TesteMetaWordUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TesteMetaWordUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0C7C945DA538B953D63B07FB /* TesteMetaWordApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TesteMetaWordApp.swift; sourceTree = "<group>"; };
 		101BD15CA0217C8780B855DE /* Physics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Physics.swift; sourceTree = "<group>"; };
+		1AE40EB3EC5FE28E6F2A0627 /* AtmosphereTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtmosphereTests.swift; sourceTree = "<group>"; };
 		407C486BBE6896E013E72904 /* CompositionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionTests.swift; sourceTree = "<group>"; };
 		5A13B7BED96173B00C8567EE /* CompositionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionEngine.swift; sourceTree = "<group>"; };
 		5B2C681D14CABAD742AFFE2F /* PhysicsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicsTests.swift; sourceTree = "<group>"; };
 		5E4B5D344798DDF366B8A4CA /* Composition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Composition.swift; sourceTree = "<group>"; };
 		6662058DC8E0F9747A861450 /* TesteMetaWord.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TesteMetaWord.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		82448A2C4655DB610D579422 /* Atmosphere.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Atmosphere.metal; sourceTree = "<group>"; };
 		833A34B599762B2669F7E20D /* Vocabulary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Vocabulary.swift; sourceTree = "<group>"; };
 		A5158270BCE4B63D5C57BB8B /* DropMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropMergeTests.swift; sourceTree = "<group>"; };
+		A6C68151EA1F5914B5D4D27E /* AtmosphereView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtmosphereView.swift; sourceTree = "<group>"; };
 		D8F844CFEA394E51847A4FB5 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		EE303FC9CD2C075997CF8898 /* TesteMetaWordTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TesteMetaWordTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4157581E50CD14E73DCAC9B /* ChipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChipView.swift; sourceTree = "<group>"; };
@@ -74,6 +80,8 @@
 		72E54599EA1491BB416417AA /* TesteMetaWord */ = {
 			isa = PBXGroup;
 			children = (
+				82448A2C4655DB610D579422 /* Atmosphere.metal */,
+				A6C68151EA1F5914B5D4D27E /* AtmosphereView.swift */,
 				F4157581E50CD14E73DCAC9B /* ChipView.swift */,
 				5E4B5D344798DDF366B8A4CA /* Composition.swift */,
 				5A13B7BED96173B00C8567EE /* CompositionEngine.swift */,
@@ -88,6 +96,7 @@
 		9AD0A54AFE83CC0B09B14CCA /* TesteMetaWordTests */ = {
 			isa = PBXGroup;
 			children = (
+				1AE40EB3EC5FE28E6F2A0627 /* AtmosphereTests.swift */,
 				407C486BBE6896E013E72904 /* CompositionTests.swift */,
 				5B2C681D14CABAD742AFFE2F /* PhysicsTests.swift */,
 			);
@@ -203,6 +212,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6EEBD6CA832929A8B821DD04 /* Atmosphere.metal in Sources */,
+				99DFA67258E39A15A4DF99BE /* AtmosphereView.swift in Sources */,
 				F0330858B8FBAC46D46DF668 /* ChipView.swift in Sources */,
 				E6BABDE43C610499829E4CE6 /* Composition.swift in Sources */,
 				92F44AAA890A3ABB2AAFAD62 /* CompositionEngine.swift in Sources */,
@@ -217,6 +228,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				50D20214182AA11AB8938A32 /* AtmosphereTests.swift in Sources */,
 				E60E749FEED77BBC50213C68 /* CompositionTests.swift in Sources */,
 				441D23E0D0F273F50D44C050 /* PhysicsTests.swift in Sources */,
 			);

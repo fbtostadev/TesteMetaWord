@@ -1,16 +1,19 @@
-# Handoff: fundo e zonas de atmosfera
+# Handoff: atmosfera reativa com Metal
 
 ## Objetivo desta iteração
 
-Na worktree `TesteMetaWord-wt-refactor-bg`, branch `exp/refactor-bg`, substituir os halos sólidos por um campo luminoso contínuo que acompanha as zonas ocupadas. A direção mantém o canvas noturno e o Liquid Glass nativo. A composição orgânica, física, vocabulário e configuração do projeto seguem a base de `main`.
+Na worktree `TesteMetaWord-wt-metal-atmosphere`, branch `exp/metal-atmosphere`, comparar um shader de luz procedural com o fundo por gradientes. A referência foi preservada no commit `6543743` da branch `exp/refactor-bg`. O objetivo é continuidade visual sutil durante o gesto; a avaliação desta etapa usa o simulador.
 
 ## Estado entregue
 
 - **Foco:** é o resultado da última fusão ou, sem fusão, a palavra com mais combinações. É atraído para o centro do canvas (`Composition.focus`).
 - **Zonas:** 1, combina com o foco; 2, combina com outra palavra; 3, sem combinação (`Vocabulary.zone`, `Composition.zones`). Os gaps-alvo até a superfície do foco são 40 / 136 / 232 pt.
-- **Atmosfera** (`ContentView.swift`): `EllipticalGradient` com transparência nas duas extremidades, somente nas zonas ocupadas. Zona 1 é a mais luminosa; vazia, deixa o centro neutro. O alcance usa o gap da física + 68 pt; apenas o desenho comprime a largura adicional das frases para 45%. Fundo radial noturno e vinheta além da Zona 3 permanecem independentes da ocupação.
-- **Feedback luminoso:** reforço da Zona 1 somente quando o foco participa do ato; luz no ponto médio do par ativo, mais forte ao armar e atenuada pela resistência. Transições de 0,24 s para foco/ocupação/dimensão e 0,14 s para feedback, sem loop. Movimento reduzido elimina a interpolação dos campos. Camada sem interação e oculta da acessibilidade, atrás do vidro.
-- **Física** (`Physics.swift`, pura): repulsão abaixo de 40 pt e mola até um slot em cada zona. Os slots têm ângulos uniformes, preservam a ordem angular e usam a rotação de menor deslocamento; o raio é obtido por bisseção no gap-alvo. A física fica congelada durante arrasto, seleção, par preparado e fusão.
+- **Referência por gradientes** (`AtmosphereView.swift`): `EllipticalGradient` com transparência nas duas extremidades, somente nas zonas ocupadas. Zona 1 é a mais luminosa; vazia, deixa o centro neutro. O alcance usa o gap da física + 68 pt; apenas o desenho comprime a largura adicional das frases para 45%. Fundo radial noturno e vinheta além da Zona 3 permanecem independentes da ocupação.
+- **Metal** (`Atmosphere.metal`): shader `[[ stitchable ]]` como `ShapeStyle`, com dithering, alfa pré-multiplicado e teto de 0,18. Três zonas analíticas usam gaps recebidos da física. O par usa distância a cápsulas e união suave (24 pt), queda de 28 pt e deformação local de até 8 pt num alcance de 160 pt.
+- **Dados compartilhados:** foco, três intensidades, duas superfícies visíveis e aproximação lógica. A resistência atenua a luz e o recuo da membrana desloca a geometria. Não há buffer do vocabulário, relógio adicional ou efeito sobre o texto/vidro.
+- **Comparação:** menu nativo Metal/Gradientes na calibração, sem persistência nem reset da composição/Undo. Metal é o padrão. Pré-compilação assíncrona; Gradientes enquanto prepara ou se falhar, com estado visível no painel. O relógio do canvas pausa enquanto o painel está aberto; o popover é ancorado no botão de calibração.
+- **Feedback luminoso:** reforço interno somente se o foco participar, par mais luminoso ao armar e atenuado pela resistência. Interpolação de foco/ocupação/dimensão em 0,24 s e feedback em 0,14 s; última geometria retida durante a saída. Camada sem interação, atrás do vidro. Sem animação autônoma.
+- **Física** (`Physics.swift`, pura): repulsão abaixo de 40 pt e mola até um slot em cada zona. Os slots têm ângulos uniformes, preservam a ordem angular e usam a rotação de menor deslocamento; o raio é obtido por bisseção no gap-alvo. A física fica congelada durante calibração, arrasto, seleção, par preparado e fusão.
 - **Fusão:**
   - convergência de 0,2 s;
   - o resultado nasce no ponto de encontro, por crossfade;
@@ -22,11 +25,14 @@ Na worktree `TesteMetaWord-wt-refactor-bg`, branch `exp/refactor-bg`, substituir
 
 ## Verificação
 
-- `./scripts/build.sh` aprovado para iPadOS sem assinatura (Xcode 26.4.1).
-- Suíte completa no simulador dedicado “TesteMetaWord Atmosphere”, iPad Pro 13-inch (M5), iOS 26.4: 21 testes Swift Testing e 3 XCTest de interface. Resultado em `build/atmosphere-normal-complete.xcresult`.
-- Capturas `build/atmosphere-{initial,armed,first-fusion,long-phrase,undo}-normal-complete*.png`; sequências de fusão e Undo em `build/atmosphere-{fusion,split}-normal-complete-*.png`. Inspeção do estado inicial, par armado durante pressão, frase longa com Zona 1 vazia e retorno pelo Undo. Sem degraus perceptíveis e sem emenda entre canvas e barras.
-- Automação da soltura superficial estabilizada com medidas lidas uma vez e destino ancorado no canvas.
-- Teste de interface ampliado: três fusões por arrasto até “Eu quero comer agora”, Undo e capturas anexadas. `scripts/capture-atmosphere.py` executa os testes num UDID explícito, captura o arrasto mantido por XCTest via `simctl` e exporta os anexos para `build/`.
+- Referência: build aprovado, 21 testes de lógica e 3 de interface no commit `6543743`.
+- O teste visual executa três arrastos e Undo em cada renderizador; confirma Metal ativo, compara modos na mesma sessão e captura rotação com frase longa. A soltura superficial inclui pressão mantida para observar resistência.
+- `scripts/capture-atmosphere.py` executa em UDID explícito e exporta capturas com modo e label em `build/`, incluindo o gesto armado enquanto XCTest mantém a pressão.
+
+- Build final para iPadOS aprovado. Suíte completa: 23 testes de lógica + 5 de interface em `build/atmosphere-compare-final.xcresult`. Os 5 testes de interface passaram também com a captura armada refinada em `build/atmosphere-verified.xcresult`.
+- Percurso Metal com rotação aprovado em `build/atmosphere-rotation.xcresult`; capturas de tela inteira corrigem o recorte de retrato do snapshot do app. Comparação visual, estado armado parcial, resistência, frase longa, rotação e Undo inspecionados.
+- A revisão da sequência revelou um halo deslocado durante a medição do foco após fusão. A última geometria válida agora é retida nesse intervalo. Build e percurso Metal com A/B, rotação e Undo aprovados novamente (`build/atmosphere-focus-continuity.xcresult`); nova sequência inspecionada.
+- Uma execução do teste aleatório de física excedeu o limite de centralização (4,45 pt contra 4 pt). Sem alterações nesse código; os 4 testes de física passaram isoladamente em `build/physics-recheck.xcresult`. Detalhes e nomes das capturas no README.
 
 ## Pendências
 
