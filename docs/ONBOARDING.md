@@ -1,12 +1,12 @@
 # Onboarding — equipe que assume o TesteMetaWord
 
-> **Leitores:** as pessoas da equipe que assume o projeto e os agentes de IA que elas usam (Claude Code, Codex, Cursor ou similares). A seção 2 é escrita para os agentes: ela diz como apresentar o projeto a cada pessoa na primeira interação.
+> **Leitores:** as pessoas da equipe que assume o projeto e os assistentes de código que elas usarem. A seção 2 é escrita para esses assistentes: ela diz como apresentar o projeto a cada pessoa na primeira interação.
 
 ## 1. De onde vem este repositório
 
-- É um **protótipo de design de interação**, feito por um **Designer AI Prototyper** com programação agêntica (Claude Code). Não é uma base de produto pronta, e o autor não segue no projeto como engenheiro.
+- É um **protótipo de design de interação**, feito por um **designer de protótipos**. Não é uma base de produto pronta, e o autor não segue no projeto como engenheiro.
 - O objetivo foi provar uma tese de interação para Comunicação Alternativa (C.A.) no iPad: compor frases fundindo palavras em Liquid Glass, com física orgânica, centro óptico e zonas de relevância. O protótipo também preparou o terreno para um motor de composição por modelo de linguagem local.
-- **Nível de confiança do código:** foi escrito em grande parte por agentes e avaliado pelo autor **pelo comportamento** (simulador, capturas, testes), não por revisão de engenharia. Há testes de lógica e de interface; nenhum formatter ou linter foi executado; nada foi validado em iPad físico nem com usuários de C.A.
+- **Nível de confiança do código:** foi avaliado pelo autor **pelo comportamento** (simulador, capturas, testes), não por revisão de engenharia. Há testes de lógica e de interface; nenhum formatter ou linter foi executado; nada foi validado em iPad físico nem com usuários de C.A.
 
 ### 1.1 Intenção de design × escolha de implementação
 
@@ -25,7 +25,7 @@ O que está na coluna da esquerda é a tese do protótipo: mudar exige decisão 
 | Acessibilidade: movimento reduzido, alvos legíveis durante o movimento | Implementação atual de `reduceMotion` |
 | Motor de composição **local**, sem serviço remoto nem custo por token no uso | `RuleEngine`; Qwen3-0.6B + LoRA via mlx-lm em `ml/` |
 
-## 2. Instruções para o agente de IA
+## 2. Instruções para assistentes de código
 
 ### 2.1 Primeira interação com uma pessoa da equipe
 
@@ -58,7 +58,7 @@ Quando alguém abrir o projeto pela primeira vez, pedir contexto (“o que é is
 
 ```markdown
 **O que é:** <2–3 frases: protótipo de C.A. no iPad, fusão de palavras em Liquid Glass, motor local em preparação>
-**Origem:** protótipo de design (Designer AI Prototyper + agentes); confiança de protótipo, não de produto.
+**Origem:** protótipo de design; confiança de protótipo, não de produto.
 **Funciona hoje:** <composição, fusão, sugestões, Undo, toque; o que os testes cobrem>
 **Não validado:** <iPad físico, VoiceOver, desempenho, uso com C.A., motor por modelo no app>
 **Intenção de design a preservar:** <3–5 itens da tabela 1.1 relevantes ao papel da pessoa>
@@ -99,7 +99,7 @@ Os pesos treinados (`ml/adapters/`) não são versionados. Para reproduzir, trei
 
 - **Laboratório ou produto?** Nome, bundle identifier, repositório, equipe de assinatura, CI.
 - **Fluxo Git:** manter o do laboratório (`main` + `exp/<nome>`, sem PR; `docs/GIT.md`) ou adotar PR e CI.
-- **Convenções de trabalho com agentes.** O protótipo foi feito sob estas regras (do ambiente do autor, não versionadas no repositório), pensadas para um projeto **sem usuários reais**:
+- **Convenções de trabalho.** O protótipo foi feito sob estas regras (do ambiente do autor, não versionadas no repositório), pensadas para um projeto **sem usuários reais**:
   1. documentação primeiro (README, SPEC), depois os testes mínimos de alto sinal, depois a menor implementação, depois a limpeza;
   2. sem compatibilidade retroativa nem migração de dados;
   3. substituir o que muda pela forma mais simples e atualizar todos os chamadores na mesma mudança;
@@ -117,7 +117,7 @@ Os pesos treinados (`ml/adapters/`) não são versionados. Para reproduzir, trei
 | --- | --- |
 | `AGENTS.md` | Regras do projeto para pessoas e agentes; conceito, decisões da v1, fluxo Git |
 | `CLAUDE.md` | Faz o Claude Code carregar o `AGENTS.md` |
-| `docs/ONBOARDING.md` | Este documento: transição para a equipe e briefing dos agentes |
+| `docs/ONBOARDING.md` | Este documento: transição para a equipe e briefing para assistentes de código |
 | `README.md` | Uso, mapa do código, build/testes, resultado da validação |
 | `SPEC.md` | Comportamento atual, constantes e critérios |
 | `HANDOFF.md` | Estado da última iteração e pendências |

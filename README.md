@@ -2,7 +2,7 @@
 
 Laboratório SwiftUI para iPadOS 26+ sobre comunicação alternativa (C.A.). Cada palavra é um chip de Liquid Glass numa grid circular orgânica, com um centro óptico e zonas de relevância ao redor. Arrastar uma palavra sobre outra funde as duas, como numa mitose reversa, e do resultado brotam novas sugestões. Também há alternativa por toque, pinça com dois dedos e Undo. O comportamento completo está em [SPEC.md](SPEC.md).
 
-Se você está assumindo o projeto, comece por [docs/ONBOARDING.md](docs/ONBOARDING.md): origem do protótipo, intenção de design, estado atual e um briefing para agentes de IA. O roteiro de longo prazo está em [future-HANDOFF.md](future-HANDOFF.md).
+Se você está assumindo o projeto, comece por [docs/ONBOARDING.md](docs/ONBOARDING.md): origem do protótipo, intenção de design, estado atual e os primeiros passos para cada papel. O roteiro de longo prazo está em [future-HANDOFF.md](future-HANDOFF.md).
 
 ## Rodar num iPad
 

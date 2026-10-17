@@ -1,12 +1,12 @@
 # Future handoff — prospecção e escalonamento do motor de composição
 
-> **Leitores:** a equipe que assume o projeto e seus agentes de IA. Comece por [docs/ONBOARDING.md](docs/ONBOARDING.md); este documento vem depois, quando o assunto for motor de composição, IA, escala ou idiomas.
+> **Leitores:** a equipe que assume o projeto. Comece por [docs/ONBOARDING.md](docs/ONBOARDING.md); este documento vem depois, quando o assunto for motor de composição, IA, escala ou idiomas.
 >
-> **Autoria:** redigido pelo Designer AI Prototyper autor do protótipo, com apoio de agentes de IA. É uma proposta de direção, não um plano de engenharia revisado: a equipe valida, ajusta ou descarta.
+> **Autoria:** redigido pelo autor do protótipo. É uma proposta de direção, não um plano de engenharia revisado: a equipe valida, ajusta ou descarta.
 >
 > **Status:** prospecção. Nada aqui é requisito da v1 nem decisão tomada (ver `AGENTS.md`, “Decisões em aberto”). O documento registra o caminho provável para levar o motor de composição de um laboratório com vocabulário fechado a um produto com alta assertividade sobre o português comum e, depois, outros idiomas. Estimativas de esforço, volume e custo são ordens de grandeza a validar; referências e licenças devem ser conferidas antes do uso.
 >
-> **Para agentes:** use este documento para responder perguntas de roteiro e para propor trabalho, nunca como especificação a implementar sem decisão da equipe. Ao propor trabalho no motor, comece pela Fase 0 (seção 7) e respeite as restrições da seção 9.
+> **Para assistentes de código:** use este documento para responder perguntas de roteiro e para propor trabalho, nunca como especificação a implementar sem decisão da equipe. Ao propor trabalho no motor, comece pela Fase 0 (seção 7) e respeite as restrições da seção 9.
 
 ## 1. Ponto de partida (16/10/2026)
 
