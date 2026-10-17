@@ -78,9 +78,10 @@ Quando alguém abrir o projeto pela primeira vez, pedir contexto (“o que é is
 | Fora da v1 | Pinça, zona de sumiço, persistência, voz | `AGENTS.md` |
 
 Capturas do simulador:
-- `docs/media/zones-initial.png`: foco no centro, zonas e halos;
-- `docs/media/zones-fusion-frames.png`: sequência da fusão e do Undo;
-- `docs/media/zones-after-fusion.png`: composição depois da fusão.
+- `docs/media/atmosphere-initial.jpg`: foco no centro e luz só na zona ocupada;
+- `docs/media/atmosphere-armed.jpg`: par armado durante o arrasto;
+- `docs/media/atmosphere-first-fusion.jpg`, `atmosphere-long-phrase.jpg`, `atmosphere-undo.jpg`: composição depois das fusões e do Undo;
+- `docs/media/zones-fusion-frames.png`: sequência da fusão (mitose) e do Undo, quadro a quadro. É da iteração anterior, com halos em vez do campo luminoso, mas o movimento é o mesmo.
 
 Os pesos treinados (`ml/adapters/`) não são versionados. Para reproduzir, treine de novo (rodada 2: cerca de 1 h num Mac M4).
 

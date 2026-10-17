@@ -18,7 +18,11 @@ A disposição não é uma grade fixa: é uma grid circular organizada pela rele
 | 2 · média | combina com outra palavra presente, não com o foco | 136 pt (uma camada adiante) |
 | 3 · externa | nenhuma combinação disponível | 232 pt |
 
-Quanto mais perto do foco, maior a probabilidade de fusão; a interação principal acontece na zona interna. Três halos brancos muito sutis, em forma de cápsula e concêntricos ao foco, desenham as atmosferas (não simulam vidro).
+Quanto mais perto do foco, maior a probabilidade de fusão; a interação principal acontece na zona interna. Campos elípticos de luz branca, com queda suave e transparência no interior e na borda, desenham somente as zonas ocupadas em `composition.zones`. A Zona 1 tem a maior intensidade. Se estiver vazia, o centro fica neutro mesmo com zonas externas ocupadas.
+
+O alcance de cada campo usa `Physics.zoneGap(zone) + 68 pt` de cada lado do foco. A largura visual do foco é `altura + max(0, largura − altura) × 0,45`, mantendo frases longas proporcionais. Essa redução vale apenas para o desenho. Fundo radial noturno e vinheta suave além da Zona 3 pertencem ao canvas, independentemente da ocupação.
+
+Mudanças de foco, tamanho e ocupação têm transição de 0,24 s. Durante o ato, a Zona 1 ganha intensidade somente se o foco estiver sendo arrastado, selecionado ou no par ativo/em fusão. Uma luz localizada acompanha o ponto médio de `activePair`; armar aumenta a intensidade e a resistência a reduz. Esses ajustes duram 0,14 s, sem pulsação contínua. Toda a atmosfera fica atrás do `GlassEffectContainer`, sem hit testing nem elementos de acessibilidade.
 
 Cada palavra é um corpo em uma física 2D:
 
@@ -80,7 +84,7 @@ Merge consome as origens, cria resultado e sugestões e guarda o estado anterior
 
 ## Movimento reduzido
 
-Sem órbita, impulso, pulso ou recuo espacial. Cada mudança calcula o equilíbrio de uma vez; palavras surgem e somem por dissolve.
+Sem órbita, impulso, pulso ou recuo espacial. Cada mudança calcula o equilíbrio de uma vez; palavras surgem e somem por dissolve. Os campos de atmosfera atualizam posição, dimensão e intensidade sem interpolação, inclusive durante fusão e Undo.
 
 ## Calibração
 
@@ -88,4 +92,4 @@ Popover com distância de aproximação 8–60 pt (default 24). Alterações can
 
 ## Validação
 
-Swift Testing: vocabulário, confirmação, armar/desarmar, cancelamento, Undo, foco e zonas de relevância, física (foco no centro, zonas ordenadas, ausência de pontes em repouso, nascimento) e órbita. Testes de interface devem arrastar e soltar sobre um alvo real e observar o resultado sem toque adicional, além de conferir Undo e a soltura superficial. Build e testes não provam a ponte fluida, a sensação da física nem o desempenho; isso requer simulador ou iPad físico.
+Swift Testing: vocabulário, confirmação, armar/desarmar, cancelamento, Undo, foco e zonas de relevância, física (foco no centro, zonas ordenadas, ausência de pontes em repouso, nascimento) e órbita. Testes de interface arrastam e soltam sobre alvos reais, observam o resultado sem toque adicional e conferem Undo e soltura superficial. O percurso eu + querer → Eu quero + comer → Eu quero comer + agora → Eu quero comer agora registra o estado inicial, a primeira fusão, a frase com Zona 1 vazia e Undo. Durante o primeiro arrasto, XCTest mantém a pressão por 8 s para captura externa do estado armado por `simctl` (`scripts/capture-atmosphere.py`). Build e testes não provam a sensação da física nem o desempenho no iPad físico.

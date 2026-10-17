@@ -61,7 +61,31 @@ struct ContentView: View {
             .onChange(of: dynamicTypeSize) { cancel(space) }
             .onChange(of: composition.calibration) { cancel(space) }
         }
-        .background(Color(red: 0.035, green: 0.045, blue: 0.065).ignoresSafeArea())
+        .background {
+            GeometryReader { geometry in
+                let focusHeight = composition.chips.first { $0.id == composition.focus }
+                    .map { measure($0, width: max(160, geometry.size.width)).height } ?? 56
+                ZStack {
+                    RadialGradient(
+                        colors: [Color(red: 0.055, green: 0.068, blue: 0.095), Color(red: 0.025, green: 0.032, blue: 0.05)],
+                        center: .center, startRadius: 0,
+                        endRadius: max(geometry.size.width, geometry.size.height) * 0.7
+                    )
+                    // Extend the canvas vignette behind the chrome to avoid a rectangular seam.
+                    RadialGradient(
+                        colors: [.clear, .black.opacity(0.3)], center: .center,
+                        startRadius: focusHeight / 2 + Physics.zoneGap(3) + 68,
+                        endRadius: max(focusHeight / 2 + Physics.zoneGap(3) + 220,
+                                       hypot(geometry.size.width, geometry.size.height) / 2)
+                    )
+                }
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: focusHeight)
+                .transaction { if reduceMotion { $0.animation = nil } }
+            }
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
         .preferredColorScheme(.dark)
         .task { await composition.refresh() }
         .onDisappear { fusionTask?.cancel() }
@@ -109,20 +133,57 @@ struct ContentView: View {
         .coordinateSpace(name: "canvas")
     }
 
-    /// Three faint nested halos around the optical center, one per attraction zone. They overlap,
-    /// so the inner zone reads brightest. Each halo reaches just past its zone's outer edge.
-    @ViewBuilder private func atmosphere(_ space: Space) -> some View {
-        if let focus = composition.focus, let size = space.sizes[focus], let core = bodies[focus]?.position {
-            ForEach(1...3, id: \.self) { zone in
-                let reach = 2 * (Physics.zoneGap(zone) + 56 + 12)
-                Capsule()
-                    .fill(.white.opacity(0.03))
-                    .frame(width: size.width + reach, height: size.height + reach)
+    /// Only occupied zones emit light. Outer fields have a clear interior, so an empty
+    /// inner zone stays neutral. The compressed width is visual only; physics keeps full sizes.
+    private func atmosphere(_ space: Space) -> some View {
+        let size = composition.focus.flatMap { space.sizes[$0] } ?? CGSize(width: 56, height: 56)
+        let occupied = Set(composition.zones.values).sorted()
+        let focusEngaged = composition.focus.map { focus in
+            composition.dragging == focus || composition.selected == focus
+                || composition.activePair?.contains(focus) == true || fusingPair?.contains(focus) == true
+        } ?? false
+        return ZStack(alignment: .topLeading) {
+            if let focus = composition.focus, let core = bodies[focus]?.position {
+                ForEach(occupied, id: \.self) { zone in
+                    let reach = 2 * (Physics.zoneGap(zone) + 68)
+                    let inner = zone == 1 ? 0.12 : (size.height / 2 + Physics.zoneGap(zone - 1) + 36) / ((size.height + reach) / 2)
+                    EllipticalGradient(gradient: Gradient(stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .clear, location: inner),
+                        .init(color: .white.opacity(0.55), location: inner + (1 - inner) * 0.3),
+                        .init(color: .white, location: inner + (1 - inner) * 0.5),
+                        .init(color: .white.opacity(0.45), location: inner + (1 - inner) * 0.75),
+                        .init(color: .clear, location: 1)
+                    ]), endRadiusFraction: 0.5)
+                    .frame(width: size.height + max(0, size.width - size.height) * 0.45 + reach,
+                           height: size.height + reach)
+                    .opacity(zone == 1 ? (focusEngaged ? 0.085 : 0.06) : zone == 2 ? 0.035 : 0.022)
                     .position(core)
+                    .transition(.opacity)
+                }
             }
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+
+            if let pair = composition.activePair,
+               let a = bodies[pair.source]?.position, let b = bodies[pair.target]?.position {
+                let armed = composition.dropCandidate != nil || composition.candidate != nil
+                EllipticalGradient(colors: [.white, .white.opacity(0.45), .clear], endRadiusFraction: 0.5)
+                    .frame(width: min(240, max(size.height * 2, abs(a.x - b.x) + 100)),
+                           height: min(180, max(100, abs(a.y - b.y) + 80)))
+                    .opacity((armed ? 0.13 : 0.055) * (1 - composition.resistance * 0.55))
+                    .position(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+                    .transition(.opacity)
+            }
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: composition.focus)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: occupied)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: size)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: focusEngaged)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: composition.activePair)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: composition.dropCandidate)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: composition.resistance)
+        .transaction { if reduceMotion { $0.animation = nil } }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private func toolbar(_ space: Space) -> some View {
