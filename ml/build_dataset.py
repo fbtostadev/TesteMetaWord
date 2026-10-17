@@ -151,7 +151,8 @@ def atmosphere_example(grammar, focus, words):
     return message(f'atmosfera: foco "{focus}"; palavras: [{listed}]', zones)
 
 
-# The app's current rules (TesteMetaWord/Vocabulary.swift, SPEC.md) that the grammar must keep.
+# Rules of the app's former hand-written table that the grammar must keep. The app now reads
+# this grammar itself (TesteMetaWord/Grammar.swift); its tests check the whole former table.
 PARITY = [
     ("querer", "ir", "Quero ir", ["agora", "depois"]),
     ("querer", "comer", "Quero comer", ["mais", "menos"]),

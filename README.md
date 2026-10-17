@@ -24,7 +24,8 @@ Estado e parâmetros vivem apenas na sessão. Sem SwiftData, voz ou serviços re
 
 - `TesteMetaWord/Composition.swift`: estado, gestos, fusão, Undo, foco e zonas lidos do último léxico do motor.
 - `TesteMetaWord/CompositionEngine.swift`: contrato do motor (`lexicon(for:focus:)`) e `RuleEngine`, o motor padrão e fallback.
-- `TesteMetaWord/Vocabulary.swift`: combinações locais e relevância (`zone`) usadas pelo `RuleEngine`.
+- `TesteMetaWord/Vocabulary.swift`: palavras iniciais, combinações e relevância (`zone`) usadas pelo `RuleEngine`.
+- `TesteMetaWord/Grammar.swift`: gramática procedural de fusão, lida de `ml/vocabulary.json` (recurso do app e fonte do dataset; ver `SPEC.md`).
 - `ml/`: preparação do motor por modelo local (dataset, LoRA, avaliação); ver `ml/README.md`.
 - `TesteMetaWord/Physics.swift`: física pura (repulsão, slots por zona, nascimento, órbita) com as constantes nomeadas.
 - `TesteMetaWord/ContentView.swift`: canvas, `TimelineView` como relógio da física, atmosferas, gestos e animações.

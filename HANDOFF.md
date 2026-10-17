@@ -43,6 +43,15 @@ Na worktree `TesteMetaWord-wt-metal-atmosphere`, branch `exp/metal-atmosphere`, 
 - Integrada a `main` em `bed3303`; em seguida `exp/long-press-split` (`fd14e01`) entrou por cima, com conflitos de texto em README e SPEC e o `.xcodeproj` regenerado por XcodeGen.
 - Destino: `main` em `~/dev/TesteMetaWord`. Worktrees encerradas. Capturas-chave do Metal versionadas em `docs/media/metal/`; PNGs originais, sequências, logs e `.xcresult` arquivados em `~/dev/TesteMetaWord-artifacts/metal-atmosphere` (fora do Git).
 
+## Experimento: gramática procedural (`exp/gramatica-procedural`)
+
+Worktree `TesteMetaWord-wt-gramatica-procedural`. A tabela de regras escrita à mão em `Vocabulary.swift` foi substituída por `Grammar.swift`, porte da classe `Grammar` de `ml/build_dataset.py`. Ela lê `ml/vocabulary.json`, que passa a ser recurso do app (via `project.yml`) e fonte única para o app e o dataset. A API de `Vocabulary` e o contrato `CompositionEngine`/`Lexicon` não mudaram.
+
+- **Cobertura:** 49 palavras e 4.992 frases; antes, 41 pares. Entram sujeitos você/nós, negação, modais precisar/poder/gostar, verbos dormir/ver/ouvir/tomar banho, complementos e tempos hoje/amanhã. Essas palavras só aparecem como sugestões; as iniciais não mudaram.
+- **Paridade:** os 41 resultados da tabela anterior são mantidos. Quatro sugestões mudaram (ver `SPEC.md`), o que levou o percurso visual a usar Eu quero comer + **mais** no lugar de + agora. A captura “long-phrase” deixa de mostrar a Zona 1 vazia.
+- **Testes:** 44 Swift Testing (5 novos em `GrammarTests`) e 8 XCTest de interface aprovados no simulador iPad Pro 13-inch (M5) (`build/gramatica-full.xcresult`). Não validado no iPad físico nem por escuta ou inspeção visual das novas frases.
+- **Em aberto (decisão da equipe):** zonas como grau de associação em vez de binárias; frase + frase; sugestões por associação (n-gram, `NLEmbedding`) em vez de listas fixas.
+
 ## Pendências
 
 - Avaliação manual da sensação do gesto e da física, do idle em uso de C.A., da membrana, do long press, do VoiceOver, do desempenho; iPad físico.
