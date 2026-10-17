@@ -2,7 +2,7 @@ import XCTest
 
 /// Minimal interaction check in one launch: the whole drag-and-drop gesture (shallow and deep),
 /// the gap a drop on the BubbleKey chooses (left and right of the same bubble), a fusion from the
-/// outer zone, Undo and the long-press split.
+/// outer zone, Undo, pulling a word out of the phrase and putting it back, and the long-press split.
 @MainActor final class DropMergeTests: XCTestCase {
     override func setUp() async throws {
         continueAfterFailure = false
@@ -51,6 +51,24 @@ import XCTest
         XCTAssertTrue(focus.waitForExistence(timeout: 3))
         XCTAssertTrue(comer.exists)
 
+        // Holding a word of the phrase and pulling takes just that word out; putting it back on the
+        // BubbleKey is a new insertion, and Undo goes back through both acts.
+        waitUntilSettled(focus)
+        pullOut(focus, at: 0.85, to: CGPoint(x: app.frame.minX + 100, y: app.frame.maxY - 200), in: app)
+        let rest = app.buttons["chip-Quero"]
+        XCTAssertTrue(rest.waitForExistence(timeout: 5), "Puxar a palavra deve deixar o resto da frase na BubbleKey")
+        XCTAssertTrue(ir.waitForExistence(timeout: 5), "A palavra puxada vira uma bolha própria")
+        XCTAssertFalse(focus.exists)
+        waitUntilSettled(ir)
+        waitUntilSettled(rest)
+        drop(ir, onto: rest, side: 1, in: app)
+        XCTAssertTrue(focus.waitForExistence(timeout: 5), "Soltar a palavra à direita da BubbleKey deve devolvê-la à frase")
+        undo.tap()
+        XCTAssertTrue(rest.waitForExistence(timeout: 3))
+        undo.tap()
+        XCTAssertTrue(focus.waitForExistence(timeout: 3))
+        XCTAssertFalse(ir.exists)
+
         // Holding the latest result splits it back into its origins.
         waitUntilSettled(focus)
         focus.press(forDuration: 1.0)
@@ -78,6 +96,14 @@ import XCTest
         let a = source.frame, b = target.frame
         point(app, CGPoint(x: a.midX, y: a.midY))
             .press(forDuration: 0.05, thenDragTo: point(app, CGPoint(x: b.midX, y: b.midY)), withVelocity: .slow, thenHoldForDuration: 0)
+    }
+
+    /// Rests a finger on `target` at `x` (0 … 1 across it) for 0.3 s, longer than a drag's grace and
+    /// shorter than the long press that splits it, and then pulls to `end`.
+    private func pullOut(_ target: XCUIElement, at x: CGFloat, to end: CGPoint, in app: XCUIApplication) {
+        let frame = target.frame
+        point(app, CGPoint(x: frame.minX + frame.width * x, y: frame.midY))
+            .press(forDuration: 0.3, thenDragTo: point(app, end), withVelocity: .slow, thenHoldForDuration: 0)
     }
 
     /// Drags `source` until the finger rests 12 pt inside the left (`side` -1) or right (1) end

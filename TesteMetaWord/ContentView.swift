@@ -46,6 +46,10 @@ struct ContentView: View {
     /// Chips whose finger outlived a pinch; ignored until every finger lifts.
     @State private var suppressed: Set<UUID> = []
     @State private var shake = ShakeDetector()
+    /// When the first finger of the current touch went down, and the word it pulled out of the
+    /// BubbleKey's phrase, which the rest of that drag moves.
+    @State private var touchDown: TimeInterval?
+    @State private var lifted: UUID?
 
     private var motion: Animation? { reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.82) }
     /// Births and removals: a quick spring for the budding, a plain dissolve with Reduce Motion.
@@ -176,6 +180,7 @@ struct ContentView: View {
                             activate: { activate(chip.id, space) },
                             undo: { undo(chip.id, space) },
                             derive: { derive(chip.id, space) },
+                            remove: { index in takeOut(index, of: chip, space) },
                             phrase: phrase(chip, space).flatMap { layout in composition.focusPhrase.map { ($0, layout) } },
                             opening: opening(chip, space),
                             insertion: insertionValue(chip),
@@ -209,7 +214,10 @@ struct ContentView: View {
         .coordinateSpace(name: "canvas")
         .gesture(TouchTracker { touches = $0 })
         .onGeometryChange(for: CGPoint.self) { $0.frame(in: .global).origin } action: { canvasOrigin = $0 }
-        .onChange(of: touches) { trackPinch(space) }
+        .onChange(of: touches) { old, new in
+            if old.isEmpty, !new.isEmpty { touchDown = Date().timeIntervalSinceReferenceDate }
+            trackPinch(space)
+        }
         .onChange(of: composition.depth) { _, depth in depthSound.update(depth: depth) }
         .onChange(of: composition.rejecting) { _, rejecting in
             if rejecting { sfx.play(.error) }
@@ -640,28 +648,47 @@ struct ContentView: View {
         composition.updateInsertion(layout.gap(at: x, current: composition.insertion))
     }
 
+    /// How long a finger rests on a word of the BubbleKey's phrase before pulling counts as taking
+    /// the word out; moving sooner drags the whole BubbleKey. Holding still divides it instead.
+    private static let pickHold: TimeInterval = 0.2
+
     private func drag(_ id: UUID, _ space: Space) -> some Gesture {
         DragGesture(minimumDistance: 10, coordinateSpace: .named("canvas"))
             .onChanged { value in
                 guard fusingPair == nil, pinch == nil, !suppressed.contains(id),
                       let chip = composition.chips.first(where: { $0.id == id }) else { return }
                 let now = Date().timeIntervalSinceReferenceDate
-                if composition.dragging != id {
+                if lifted == nil, composition.dragging != id, let index = wordUnderHold(chip, at: value.startLocation, space, time: now) {
+                    // The word leaves the phrase and the rest of the drag carries it; a word with a
+                    // twin on the canvas has nothing to carry, so the drag ends here.
+                    guard let word = takeOut(index, of: chip, space)?.word else {
+                        suppressed.insert(id)
+                        return
+                    }
+                    lifted = word
+                    dragOrigin = bodies[word]?.position
+                    shake = ShakeDetector()
+                    composition.beginDrag(word)
+                }
+                let handled = lifted ?? id
+                if composition.dragging != handled {
                     dragOrigin = rendered(chip, space, time: now)
                     shake = ShakeDetector()
-                    composition.beginDrag(id)
+                    composition.beginDrag(handled)
                 }
-                moveDragged(id, translation: value.translation, space)
+                moveDragged(handled, translation: value.translation, space)
                 dragFinger = value.location
                 // The gap is read first: choosing it goes back and forth, and must not shake.
                 updateProximity(space, time: now)
-                if shake.add(value.location, time: now, suspended: composition.choosingGap) { return shakeOff(id, space) }
+                if shake.add(value.location, time: now, suspended: composition.choosingGap) { return shakeOff(handled, space) }
             }
             .onEnded { value in
-                guard fusingPair == nil, composition.dragging == id else { return }
+                let handled = lifted ?? id
+                lifted = nil
+                guard fusingPair == nil, composition.dragging == handled else { return }
                 ignoreTapUntil = Date().addingTimeInterval(0.3)
                 // Read the release location itself; do not rely on the last frame tick.
-                moveDragged(id, translation: value.translation, space)
+                moveDragged(handled, translation: value.translation, space)
                 dragFinger = value.location
                 updateProximity(space, time: Date().timeIntervalSinceReferenceDate)
                 dragOrigin = nil
@@ -669,10 +696,40 @@ struct ContentView: View {
                 if let pair = composition.endDrag() {
                     confirmCandidate(pair, space)
                 } else {
-                    bodies[id]?.ramp = 0
+                    bodies[handled]?.ramp = 0
                     settleIfReduced(space)
                 }
             }
+    }
+
+    /// The word of the BubbleKey's phrase under a finger that went down at `start` and has rested
+    /// there for `pickHold`: the one a pull takes out. Nil for any other bubble, a phrase of one
+    /// word or one that wraps, a second finger, or a finger that moved at once.
+    private func wordUnderHold(_ chip: WordChip, at start: CGPoint, _ space: Space, time: TimeInterval) -> Int? {
+        guard chip.id == composition.focus, touches.count <= 1, let down = touchDown, time - down >= Self.pickHold,
+              composition.focusPhrase.map({ $0.count > 1 }) == true, let layout = phrase(chip, space) else { return nil }
+        let x = (start.x - rendered(chip, space, time: time).x) / focusScale(chip) + layout.size.width / 2
+        let targets = layout.targets
+        return targets.firstIndex { x < $0.maxX } ?? targets.count - 1
+    }
+
+    /// Takes word `index` out of the BubbleKey's phrase: the BubbleKey keeps the rest and the word
+    /// buds out of the place where it stood. Returns what is left on the canvas, nil if it could
+    /// not be taken out.
+    @discardableResult
+    private func takeOut(_ index: Int, of chip: WordChip, _ space: Space) -> Composition.Removed? {
+        guard fusingPair == nil, let layout = phrase(chip, space), layout.words.indices.contains(index),
+              let center = bodies[chip.id]?.position else { return nil }
+        let word = layout.words[index]
+        let stood = CGPoint(x: center.x + (word.midX - layout.size.width / 2) * focusScale(chip), y: center.y)
+        dropPinch()
+        fusionTask?.cancel()
+        fusionTask = nil
+        var removed: Composition.Removed?
+        apply(space, origin: stood) { removed = composition.removeWord(at: index) }
+        // The word under the finger is where it stood, not thrown out by the budding.
+        if let id = removed?.word { bodies[id] = Physics.Body(position: stood) }
+        return removed
     }
 
     /// The shaken bubble lets go where it is and buds related words; the rest of the drag is
@@ -810,6 +867,7 @@ struct ContentView: View {
         fusionTask?.cancel()
         fusionTask = nil
         fusingPair = nil
+        lifted = nil
         withAnimation(motion) { composition.cancel(); dragOrigin = nil; dragFinger = nil }
         settleIfReduced(space)
     }

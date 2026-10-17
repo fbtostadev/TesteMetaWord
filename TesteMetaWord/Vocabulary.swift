@@ -8,6 +8,13 @@ enum Vocabulary {
         var strength = 1
     }
 
+    /// A phrase after one of its words is taken out: what is left, and the word as a bubble of its
+    /// own (nil when nothing comes out, as with the coordinating "e").
+    struct Removal: Equatable {
+        let rest: String
+        let word: String?
+    }
+
     static let initial = ["querer", "ir", "comer", "beber", "eu", "brincar"]
     /// Fusion of two texts by the procedural grammar of `ml/vocabulary.json` (see `Grammar`).
     static func combine(_ a: String, _ b: String) -> Combination? {
@@ -22,6 +29,11 @@ enum Vocabulary {
     /// `text` entering `phrase` before its word `index`, in that order (see `Grammar.insert`).
     static func insert(_ text: String, into phrase: String, at index: Int) -> Combination? {
         Grammar.shared.insert(text, into: phrase, at: index)
+    }
+
+    /// `phrase` without its word `index` (see `Grammar.remove`).
+    static func remove(_ index: Int, from phrase: String) -> Removal? {
+        Grammar.shared.remove(index, from: phrase)
     }
 
     /// Up to three words related to `text`, budded by a shake (see `Grammar.related`).
