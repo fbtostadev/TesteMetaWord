@@ -29,13 +29,13 @@ Estado e parâmetros vivem apenas na sessão. Sem SwiftData, voz ou serviços re
 - `ml/`: preparação do motor por modelo local (dataset, LoRA, avaliação); ver `ml/README.md`.
 - `TesteMetaWord/Physics.swift`: física pura (repulsão, slots por zona, nascimento, órbita) com as constantes nomeadas.
 - `TesteMetaWord/ContentView.swift`: canvas, `TimelineView` como relógio da física, atmosferas, gestos e animações.
-- `TesteMetaWord/AtmosphereView.swift`: parâmetros compartilhados, interpolação e referência por gradientes.
+- `TesteMetaWord/AtmosphereView.swift`: parâmetros do shader da atmosfera e sua interpolação.
 - `TesteMetaWord/Atmosphere.metal`: faixas suaves, união luminosa das cápsulas e deformação localizada.
 - `TesteMetaWord/ChipView.swift`: cápsula de vidro, estado armado e pulso.
 - `TesteMetaWord/TouchTracker.swift`: observador UIKit dos dedos na tela (posição e quantidade), sem consumir toques; base da pinça.
 - `TesteMetaWord/SplitTension.swift`: tensão do long press (curva do tremor, síntese do som tremular, reprodução).
 - `TesteMetaWord/Sfx.swift`: sons de fundo sintetizados (fusão, divisão, erro) e seu player.
-- `scripts/capture-atmosphere.py`: testes e capturas da atmosfera, incluindo o arrasto mantido em estado armado.
+- `TesteMetaWord/Shake.swift`: reconhecimento da sacudida no arrasto.
 
 ## Build e testes
 
@@ -49,13 +49,9 @@ Se o ambiente impedir o sandbox de macros, use `./scripts/build.sh 'OTHER_SWIFT_
 
 Build para dispositivo sem assinatura: `build/DerivedData/Build/Products/Debug-iphoneos/TesteMetaWord.app`.
 
-Para capturar a atmosfera sem disputar o simulador de outro experimento, use um iPad dedicado já iniciado e passe seu UDID (`xcrun simctl list devices booted`):
+Validação mínima: build, testes de lógica e quatro testes de interface básicos. Não há testes nem scripts de comparação visual; crashes e erros críticos são relatados pela pessoa usuária (ver `AGENTS.md`, “Validação”).
 
-```sh
-python3 scripts/capture-atmosphere.py <UDID> --label comparacao-01
-```
-
-O script executa a suíte completa com `xcodebuild test`; use `--only-atmosphere` para repetir os dois percursos visuais e a soltura superficial; `--only-metal` executa somente o percurso Metal com A/B e rotação. Usa somente a biblioteca padrão do Python 3. Cada `--label` deve ser novo, pois preserva o `.xcresult` anterior. Logs, resultados, capturas PNG e anexos exportados ficam em `build/`. O XCTest segura o arrasto por 8 s; `simctl` captura enquanto ele permanece pressionado. Os nomes incluem `metal` ou `gradients`. Sequências `fusion` e `split` registram a reorganização e o Undo; `resistance` registra a pressão superficial. O teste abre a calibração e exige “Metal ativo”, para não aceitar o fallback como evidência do shader. O argumento `--atmosphere-renderer=gradients` permite iniciar a referência na automação.
+> **Histórico:** o renderizador por gradientes, o interruptor de sons e o script `scripts/capture-atmosphere.py` foram removidos em `exp/gramatica-procedural`. As seções abaixo registram experimentos anteriores e citam esses recursos como estavam.
 
 ## Referência preservada
 

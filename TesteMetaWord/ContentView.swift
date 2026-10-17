@@ -9,9 +9,8 @@ struct ContentView: View {
     @State private var fusionTask: Task<Void, Never>?
     @State private var fusingPair: MergePair?
     @State private var showCalibration = false
-    @State private var atmosphereRenderer = AtmosphereRenderer.initial
+    /// The atmosphere shader draws once it has compiled; without it the canvas stays plain.
     @State private var metalReady = false
-    @State private var metalFailed = false
     @State private var ignoreTapUntil = Date.distantPast
     @Namespace private var glass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -19,7 +18,6 @@ struct ContentView: View {
     @ScaledMetric(relativeTo: .title3) private var fontSize = 20.0
     @State private var splitSound = SplitSound()
     @State private var sfx = Sfx()
-    @State private var soundsOn = true
     @State private var depthSound = DepthSound()
     /// The master bubble under a long press that will split it, and when the press began.
     @State private var tension: (id: UUID, start: TimeInterval)?
@@ -113,12 +111,7 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .task {
             await composition.refresh()
-            do {
-                try await AtmosphereFrame.zero.shader.compile(as: .shapeStyle)
-                metalReady = true
-            } catch {
-                metalFailed = true
-            }
+            metalReady = (try? await AtmosphereFrame.zero.shader.compile(as: .shapeStyle)) != nil
         }
         .onDisappear { fusionTask?.cancel() }
     }
@@ -128,10 +121,9 @@ struct ContentView: View {
             Color.clear.contentShape(Rectangle())
                 .onTapGesture { cancel(space) }
                 .accessibilityHidden(true)
-            AtmosphereView(
-                input: atmosphereInput(space, time: time),
-                renderer: atmosphereRenderer == .metal && metalReady ? .metal : .gradients
-            )
+            if metalReady {
+                AtmosphereView(input: atmosphereInput(space, time: time))
+            }
             GlassEffectContainer(spacing: Physics.glassSpacing) {
                 ZStack(alignment: .topLeading) {
                     ForEach(composition.chips) { chip in
@@ -174,7 +166,6 @@ struct ContentView: View {
         .gesture(TouchTracker { touches = $0 })
         .onGeometryChange(for: CGPoint.self) { $0.frame(in: .global).origin } action: { canvasOrigin = $0 }
         .onChange(of: touches) { trackPinch(space) }
-        .onChange(of: soundsOn, initial: true) { sfx.muted = !soundsOn; splitSound.muted = !soundsOn; depthSound.muted = !soundsOn }
         .onChange(of: composition.depth) { _, depth in depthSound.update(depth: depth) }
         .onChange(of: composition.rejecting) { _, rejecting in
             if rejecting { sfx.play(.error) }
@@ -202,7 +193,7 @@ struct ContentView: View {
         return SplitTension.progress(since: tension.start, now: time)
     }
 
-    /// Both renderers consume the same snapshot. Geometry follows the visible surfaces;
+    /// The shader's snapshot. Geometry follows the visible surfaces;
     /// proximity still follows the logical distance used by the gesture, before membrane recoil.
     private func atmosphereInput(_ space: Space, time: TimeInterval) -> AtmosphereInput {
         let focus = composition.focus
@@ -286,13 +277,6 @@ struct ContentView: View {
         .multilineTextAlignment(.center)
     }
 
-    private var atmosphereStatus: String {
-        if atmosphereRenderer == .gradients { return "Gradientes ativos" }
-        if metalReady { return "Metal ativo" }
-        if metalFailed { return "Metal indisponível. Usando gradientes." }
-        return "Preparando Metal…"
-    }
-
     private var calibrationPanel: some View {
         @Bindable var state = composition
         return VStack(alignment: .leading, spacing: 22) {
@@ -301,24 +285,6 @@ struct ContentView: View {
                 Spacer()
                 Button("OK") { showCalibration = false }
             }
-            VStack(alignment: .leading, spacing: 8) {
-                LabeledContent("Atmosfera") {
-                    Picker("Atmosfera", selection: $atmosphereRenderer) {
-                        Text("Metal").tag(AtmosphereRenderer.metal)
-                        Text("Gradientes").tag(AtmosphereRenderer.gradients)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .accessibilityLabel("Atmosfera")
-                    .accessibilityIdentifier("atmosphere-renderer")
-                }
-                Text(atmosphereStatus)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("atmosphere-renderer-status")
-            }
-            Toggle("Sons", isOn: $soundsOn)
-                .accessibilityIdentifier("sounds-toggle")
             Text("Distância: \(Int(state.calibration.distance)) pt")
             Slider(value: $state.calibration.distance, in: 8...60, step: 1) { Text("Distância") }
             Button("Restaurar valores") { state.calibration = Calibration() }

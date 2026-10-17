@@ -14,7 +14,7 @@ O que está na coluna da esquerda é a tese do protótipo: mudar exige decisão 
 
 | Intenção de design (decidir antes de mudar) | Escolha de implementação (pode trocar) |
 | --- | --- |
-| Liquid Glass **nativo** do SwiftUI, sem simulação com blur/gradiente | `GlassEffectContainer(spacing: 32)`, tints, `glassEffectID` |
+| Liquid Glass **nativo** do SwiftUI, sem simulação com blur/gradiente | `GlassEffectContainer(spacing: Physics.glassSpacing)`, tints, `glassEffectID` |
 | Fusão como **mitose reversa**; sugestões **brotam** do resultado (mitose) | Tempos (0,2 s de convergência), impulsos radiais, crossfade |
 | Intenção medida por **profundidade de sobreposição**, nunca por tempo (sem dwell) | Limiar de 45% da menor altura |
 | **A composição fica parada durante o gesto** e só se reorganiza depois | Congelar a física enquanto há arrasto, seleção, par preparado ou fusão |
@@ -49,7 +49,7 @@ Quando alguém abrir o projeto pela primeira vez, pedir contexto (“o que é is
 - Não altere uma **intenção de design** (tabela 1.1) por conta própria. Se uma tarefa a contradiz, aponte o conflito e peça decisão.
 - **Segredos:** nunca leia, imprima nem commite `.env`. Cada pessoa cria o seu a partir de `.env.example`. A chave do Jev usada nos comparativos é do autor e não acompanha o repositório; quem precisar rodar `ml/evaluate_jev.py` obtém uma chave própria.
 - Ao relatar resultados, separe sempre: **compilado**, **testado no simulador**, **validado em iPad físico**, **avaliado com usuário de C.A.** Não promova um nível ao outro.
-- Mudou arrasto ou fusão? Valide o gesto completo (arrastar e soltar) em teste de interface.
+- Validação mínima: build, testes de lógica e os poucos testes de interface básicos (arrastar e soltar, Undo, long press, soltura rasa). Não criar testes nem scripts que comparem renderizadores, flags ou capturas no simulador; crashes e erros críticos são relatados pela pessoa usuária.
 - Não acrescente serviço remoto de IA, voz ou persistência sem que a equipe defina o experimento.
 - Terminou uma tarefa que muda o estado do projeto? Atualize `HANDOFF.md`.
 

@@ -45,8 +45,8 @@ git commit -m "physics: ajusta atração no snapping"
 ```
 
 Commits intermediários são úteis para guardar uma hipótese. Para integrar,
-compile e execute os testes pertinentes conforme o README. Mudou arrasto ou
-fusão? Valide também o gesto completo de arrastar e soltar em teste de interface.
+compile e execute os testes básicos conforme o README (validação mínima; ver
+`AGENTS.md`). Não crie comparações visuais nem capturas no simulador.
 Registre separadamente o que foi compilado, testado no simulador e avaliado no iPad.
 
 ## Integrar sem PR

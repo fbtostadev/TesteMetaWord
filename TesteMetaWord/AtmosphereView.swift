@@ -1,15 +1,6 @@
 import SwiftUI
 import simd
 
-enum AtmosphereRenderer: String, CaseIterable {
-    case metal, gradients
-
-    /// A launch argument selects the reference renderer for UI automation only.
-    static var initial: Self {
-        ProcessInfo.processInfo.arguments.contains("--atmosphere-renderer=gradients") ? .gradients : .metal
-    }
-}
-
 struct AtmosphereInput: Equatable {
     struct Pair: Equatable {
         let id: MergePair
@@ -123,7 +114,6 @@ struct AtmosphereFrame: VectorArithmetic, Sendable {
 
 struct AtmosphereView: View {
     let input: AtmosphereInput
-    let renderer: AtmosphereRenderer
     @State private var lastPair: AtmosphereInput.Pair?
     @State private var lastFocus: CGRect?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -148,13 +138,7 @@ struct AtmosphereView: View {
     }
 
     var body: some View {
-        Group {
-            if renderer == .metal {
-                MetalAtmosphere(frame: frame)
-            } else {
-                gradientAtmosphere
-            }
-        }
+        MetalAtmosphere(frame: frame)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: input.focusID)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: input.occupied)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: input.focus.size)
@@ -171,43 +155,6 @@ struct AtmosphereView: View {
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
-    }
-
-    /// Reference implementation from exp/refactor-bg, using the shared geometry snapshot.
-    private var gradientAtmosphere: some View {
-        let size = resolvedInput.focus.size
-        return ZStack(alignment: .topLeading) {
-            if size.width > 0 && size.height > 0 {
-                ForEach(input.occupied.sorted(), id: \.self) { zone in
-                    let gap = Physics.zoneGap(zone, occupied: input.occupied)
-                    let reach = 2 * (gap + 68)
-                    // The innermost ring starts at the focus; the others after the previous ring.
-                    let inner = gap <= Physics.restGap ? 0.12 : (size.height / 2 + gap - Physics.zoneSpacing + 36) / ((size.height + reach) / 2)
-                    EllipticalGradient(gradient: Gradient(stops: [
-                        .init(color: .clear, location: 0),
-                        .init(color: .clear, location: inner),
-                        .init(color: .white.opacity(0.55), location: inner + (1 - inner) * 0.3),
-                        .init(color: .white, location: inner + (1 - inner) * 0.5),
-                        .init(color: .white.opacity(0.45), location: inner + (1 - inner) * 0.75),
-                        .init(color: .clear, location: 1)
-                    ]), endRadiusFraction: 0.5)
-                    .frame(width: size.height + max(0, size.width - size.height) * 0.45 + reach,
-                           height: size.height + reach)
-                    .opacity(zone == 1 ? (input.focusEngaged ? 0.085 : 0.06) : zone == 2 ? 0.035 : 0.022)
-                    .position(x: resolvedInput.focus.midX, y: resolvedInput.focus.midY)
-                    .transition(.opacity)
-                }
-            }
-            if let pair = input.pair {
-                EllipticalGradient(colors: [.white, .white.opacity(0.45), .clear], endRadiusFraction: 0.5)
-                    .frame(width: min(240, max(size.height * 2, abs(pair.source.midX - pair.target.midX) + 100)),
-                           height: min(180, max(100, abs(pair.source.midY - pair.target.midY) + 80)))
-                    .opacity((pair.armed ? 0.13 : 0.055) * (1 - pair.resistance * 0.55))
-                    .position(x: (pair.source.midX + pair.target.midX) / 2,
-                              y: (pair.source.midY + pair.target.midY) / 2)
-                    .transition(.opacity)
-            }
-        }
     }
 }
 
