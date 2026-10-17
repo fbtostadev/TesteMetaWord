@@ -87,7 +87,7 @@ Worktree `TesteMetaWord-wt-insercao-posicional`, a partir de `exp/gramatica-proc
 
 ## Experimento: remoção na frase (`exp/remocao`)
 
-Worktree `TesteMetaWord-wt-remocao`, a partir de `main` em `6492d3c`. Ainda **não integrado** nem commitado. Regras em `SPEC.md` (“Retirar uma palavra da frase”).
+Worktree `TesteMetaWord-wt-remocao`, a partir de `main` em `6492d3c`. Integrada a `main` em `c384b7f`, junto com a escala na passagem (seção seguinte); suíte completa aprovada antes do merge (90 Swift Testing + percurso de interface). Regras em `SPEC.md` (“Retirar uma palavra da frase”).
 
 - **Ideia:** retirar uma palavra da frase da BubbleKey reaproveita o que já existe. Segurar a palavra e puxar a **retira como ato novo** (a BubbleKey fica com o resto) e a palavra vira uma **bolha comum que o dedo continua arrastando**. Soltar longe deixa a remoção; soltar sobre a BubbleKey é a inserção posicional de sempre, e é assim que se **reordena**. Não há gesto, fresta nem hitbox novos além do pouso.
 - **Decisão minha, a confirmar com o autor:** o handoff dizia “segurar parado divide, segurar e puxar remove”, mas não como distinguir isso de arrastar a BubbleKey inteira (que o teste de interface e a fusão por arrasto usam). Escolhi **tempo de repouso**: o dedo precisa ficar 0,2 s (`ContentView.pickHold`) na palavra antes de mover; antes disso, o arrasto é da BubbleKey inteira; parado até 0,45 s, divide. É a única regra por tempo fora do long press e é uma constante fácil de trocar (outra opção: puxar na vertical remove, na horizontal arrasta).
