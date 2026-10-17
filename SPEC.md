@@ -4,7 +4,7 @@ Experimento local para iPadOS 26+, sem persistência, voz, serviço remoto ou zo
 
 ## Composição
 
-Canvas escuro com cápsulas de Liquid Glass nativo em um único GlassEffectContainer (spacing 32 pt). Tint branco e texto escuro são experimentais: não substituir o material por blur ou gradientes. Cápsulas dimensionadas pelo texto e Dynamic Type, com altura mínima de 56 pt.
+Canvas escuro com cápsulas de Liquid Glass nativo em um único GlassEffectContainer (spacing 24 pt, `Physics.glassSpacing`). Tint branco e texto escuro são experimentais: não substituir o material por blur ou gradientes. Cápsulas dimensionadas pelo texto e Dynamic Type, com altura mínima de 56 pt.
 
 A disposição não é uma grade fixa: é uma grid circular organizada pela relevância ao contexto.
 
@@ -14,9 +14,11 @@ A disposição não é uma grade fixa: é uma grid circular organizada pela rele
 
 | Zona | Critério | Distância-alvo da superfície do foco |
 | --- | --- | --- |
-| 1 · interna | fusão forte: forma uma frase da gramática (“Quero ir”) | 40 pt (encosta no foco) |
-| 2 · média | fusão média: as posições se encaixam, mas a frase é telegráfica ou reparada (“Eu brinco”, “Dor, aqui”) | 136 pt (uma camada adiante) |
-| 3 · externa | fusão fraca: as posições colidem e os textos se coordenam (“Quero ir e comer”) | 232 pt |
+| 1 · interna | fusão forte: forma uma frase da gramática (“Quero ir”) | 30 pt (encosta no foco) |
+| 2 · média | fusão média: as posições se encaixam, mas a frase é telegráfica ou reparada (“Eu brinco”, “Dor, aqui”) | 116 pt (uma camada adiante) |
+| 3 · externa | fusão fraca: as posições colidem e os textos se coordenam (“Quero ir e comer”) | 202 pt |
+
+As distâncias valem com as três zonas ocupadas. **Zona vazia não ocupa anel:** as zonas ocupadas, em ordem, tomam os anéis 30 / 116 / 202 pt. Sem palavras na zona 1, a zona 2 se reaproxima até 30 pt da BubbleKey; só a zona 3 ocupada fica a 30 pt. A luz de cada zona mantém a intensidade da sua força e acompanha o anel em 0,24 s (Metal e gradientes).
 
 Quanto mais perto do foco, maior a probabilidade de fusão; a interação principal acontece na zona interna. Campos elípticos de luz branca, com queda suave e transparência no interior e na borda, desenham somente as zonas ocupadas em `composition.zones`. A Zona 1 tem a maior intensidade. Se estiver vazia, o centro fica neutro mesmo com zonas externas ocupadas.
 
@@ -32,7 +34,7 @@ Perto do ponto médio do par, a aproximação deforma as faixas em até 8 pt, de
 
 Cada palavra é um corpo em uma física 2D:
 
-- **Repulsão:** superfícies de cápsulas mais próximas que 40 pt se repelem como molas. Como 40 pt é maior que o spacing de 32 pt, não há ponte de vidro em repouso. Quando uma zona lota, a repulsão empurra o excedente para fora.
+- **Repulsão:** superfícies de cápsulas mais próximas que 30 pt se repelem como molas. Como 30 pt é maior que o spacing de 24 pt, não há ponte de vidro em repouso. Quando uma zona lota, a repulsão empurra o excedente para fora.
 - **Atração por zona:** uma mola leva cada palavra à distância-alvo da sua zona, na direção em que ela já está; o foco é puxado para o centro. Palavras de uma mesma zona se espalham em volta do foco pela repulsão.
 - **Amortecimento:** o grosso do movimento acontece em cerca de 0,4 s, com leve elasticidade; o assentamento completo leva cerca de 1 s.
 - **Física só fora do ato:** enquanto há arrasto, seleção, par preparado ou fusão em andamento, a composição fica congelada (só a flutuação idle continua). Com a calibração aberta, o relógio inteiro pausa, incluindo a flutuação. Repulsão, atração e reorganização atuam depois — principalmente após a fusão.
@@ -97,6 +99,14 @@ Após confirmar, as origens convergem por 0,2 s ao ponto médio. O resultado nas
 
 As sugestões brotam de dentro do resultado: nascem no mesmo ponto, com escala reduzida, e recebem impulsos radiais em direções distintas e intensidades levemente diferentes. A ponte de vidro se estica e se rompe enquanto elas se afastam. Em seguida, o resultado vira o novo foco e migra para o centro; as zonas são recalculadas e cada palavra busca sua nova atmosfera — sugestões complementares na zona interna, palavras que perderam o vínculo para fora.
 
+## Sacudir (derivação)
+
+Sacudir uma bolha durante o arrasto deriva até três palavras relacionadas, sem consumir a bolha. O reconhecimento (`ShakeDetector`) exige três inversões de direção, em qualquer eixo, dentro de 0,8 s, cada balanço com pelo menos 28 pt; um arrasto comum, mesmo com correção, não sacode. A bolha solta onde está, as palavras brotam dela como as sugestões de uma fusão (mitose) e o resto do arrasto é ignorado até o dedo sair. Toca a nota de divisão; sem palavra para derivar, o erro.
+
+As palavras vêm do motor (`Lexicon.related`; na gramática, `Grammar.related`): primeiro as posições logo depois da última que a bolha preenche (a continuação natural), depois as anteriores; dentro de cada posição, as que formam frase completa. Ignora palavras presentes e posições já preenchidas. Exemplos: comer → pão / fruta / biscoito; Quero ir → para casa / ao banheiro / à escola; agora → aqui / ali / perto; querer, com as palavras iniciais na tela → dormir / ouvir / tomar banho.
+
+A derivação não muda o foco e entra no histórico: Undo (<) remove as palavras derivadas. Depois dela, o long press só volta a dividir o resultado quando a derivação for desfeita. Ação de acessibilidade “Derivar palavras relacionadas” em cada bolha oferece o mesmo sem sacudir.
+
 Cada chip registra a quantidade acumulada de fusões: resultado = contagem A + contagem B + 1. A escala de fonte e cápsula cresce 4% por fusão, limitada a +24%; a largura continua limitada ao canvas e pode quebrar texto em linhas.
 
 ## Motor de composição
@@ -113,7 +123,7 @@ O motor padrão é `RuleEngine`, que usa as regras locais da tabela acima, respo
 
 ## Undo
 
-Merge consome as origens, cria resultado e sugestões e guarda o estado anterior completo. Undo (<) restaura um merge de cada vez, incluindo identidades, fases e contagens. Visualmente, o resultado se divide: a origem que compartilha sua identidade de vidro nasce no lugar dele, a outra sai com impulso, e as sugestões encolhem e somem. O foco volta a ser o resultado anterior (ou a palavra com mais combinações) e as zonas se recompõem. Long press de 0,6 s somente no resultado da última fusão faz o mesmo; ação equivalente disponível à acessibilidade.
+Merge consome as origens, cria resultado e sugestões e guarda o estado anterior completo. Undo (<) restaura um merge de cada vez, incluindo identidades, fases e contagens. Visualmente, o resultado se divide: a origem que compartilha sua identidade de vidro nasce no lugar dele, a outra sai com impulso, e as sugestões encolhem e somem. O foco volta a ser o resultado anterior (ou a palavra com mais combinações) e as zonas se recompõem. Long press de 0,6 s somente no resultado da última fusão, se nada veio depois dela, faz o mesmo; ação equivalente disponível à acessibilidade.
 
 ### Tensão antes da divisão (long press)
 

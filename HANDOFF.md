@@ -7,7 +7,7 @@ Na worktree `TesteMetaWord-wt-metal-atmosphere`, branch `exp/metal-atmosphere`, 
 ## Estado entregue
 
 - **Foco:** é o resultado da última fusão ou, sem fusão, a palavra com mais combinações. É atraído para o centro do canvas (`Composition.focus`).
-- **Zonas:** 1, combina com o foco; 2, combina com outra palavra; 3, sem combinação (`Vocabulary.zone`, `Composition.zones`). Os gaps-alvo até a superfície do foco são 40 / 136 / 232 pt.
+- **Zonas:** 1, combina com o foco; 2, combina com outra palavra; 3, sem combinação (`Vocabulary.zone`, `Composition.zones`). Os gaps-alvo até a superfície do foco são 30 / 116 / 202 pt, tomados pelas zonas ocupadas em ordem (zona vazia não ocupa anel).
 - **Referência por gradientes** (`AtmosphereView.swift`): `EllipticalGradient` com transparência nas duas extremidades, somente nas zonas ocupadas. Zona 1 é a mais luminosa; vazia, deixa o centro neutro. O alcance usa o gap da física + 68 pt; apenas o desenho comprime a largura adicional das frases para 45%. Fundo radial noturno e vinheta além da Zona 3 permanecem independentes da ocupação.
 - **Metal** (`Atmosphere.metal`): shader `[[ stitchable ]]` como `ShapeStyle`, com dithering, alfa pré-multiplicado e teto de 0,18. Três zonas analíticas usam gaps recebidos da física. O par usa distância a cápsulas e união suave (24 pt), queda de 28 pt e deformação local de até 8 pt num alcance de 160 pt.
 - **Dados compartilhados:** foco, três intensidades, duas superfícies visíveis e aproximação lógica. A resistência atenua a luz e o recuo da membrana desloca a geometria. Não há buffer do vocabulário, relógio adicional ou efeito sobre o texto/vidro.
@@ -52,6 +52,9 @@ Worktree `TesteMetaWord-wt-gramatica-procedural`. A tabela de regras escrita à 
 - **Paridade:** as fusões fortes mantêm os 41 resultados da tabela anterior. Quatro sugestões mudaram (ver `SPEC.md`), o que levou o percurso visual a usar Eu quero comer + **mais** no lugar de + agora; a captura “long-phrase” deixa de mostrar a Zona 1 vazia.
 - **Testes:** 46 Swift Testing e 9 XCTest de interface aprovados no simulador iPad Pro 13-inch (M5) (`build/fusao-total.xcresult` e o novo `testOuterZoneWordFusesWithTheFocus`, que arrasta uma palavra da zona externa sobre o foco). Não validado no iPad físico nem por leitura das novas frases com fonoaudiólogos.
 - **Divergência com `ml/`:** `vocabulary.json` ganhou `present`, `places` e `interjections`, lidos só pelo app. O dataset (`build_dataset.py`) ainda trata as fusões média e fraca como inválidas; o modelo precisa de nova rodada antes de virar `LocalModelEngine`.
+- **Camadas compactas:** repulsão de 40 → 30 pt, spacing do vidro de 32 → 24 pt e anéis a 30 / 116 / 202 pt (antes 40 / 136 / 232). Zona vazia não ocupa anel: as externas se reaproximam da BubbleKey (`Physics.zoneGap(_:occupied:)`, também na atmosfera).
+- **Sacudir:** `ShakeDetector` (três inversões em 0,8 s, balanços de 28 pt) deriva até três palavras de `Lexicon.related`, sem mudar o foco; Undo as remove. Ação de acessibilidade equivalente. Testes de lógica cobrem o reconhecimento, as palavras e o Undo; **o XCTest não faz arrasto com vários segmentos**, então a sacudida real fica para validação à mão.
+- **Testes após camadas e sacudir:** 51 Swift Testing e 9 XCTest de interface aprovados (`build/camadas-sacudir.xcresult`).
 - **Em aberto (decisão da equipe):** texto das fusões fraca e média; se a zona externa deve exigir sobreposição maior; som de erro, que deixa de ocorrer com a gramática; sugestões por associação (n-gram, `NLEmbedding`).
 
 ## Pendências
