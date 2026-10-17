@@ -602,8 +602,9 @@ struct ContentView: View {
                 }
                 moveDragged(id, translation: value.translation, space)
                 dragFinger = value.location
-                if shake.add(value.location, time: now) { return shakeOff(id, space) }
+                // The gap is read first: choosing it goes back and forth, and must not shake.
                 updateProximity(space, time: now)
+                if shake.add(value.location, time: now, suspended: composition.choosingGap) { return shakeOff(id, space) }
             }
             .onEnded { value in
                 guard fusingPair == nil, composition.dragging == id else { return }

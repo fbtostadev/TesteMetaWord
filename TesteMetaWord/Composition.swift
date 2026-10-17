@@ -140,6 +140,9 @@ struct Calibration: Equatable {
         return options.lastIndex { $0.strength == best }
     }
 
+    /// The dragged word is choosing a gap in the BubbleKey; this takes priority over a shake.
+    var choosingGap: Bool { dragging != nil && insertion != nil }
+
     /// While a dragged word is over the BubbleKey: the gap under the finger.
     func updateInsertion(_ gap: Int?) {
         guard dragging != nil, let gap, let pair = activePair, let count = insertions(pair)?.count else {
