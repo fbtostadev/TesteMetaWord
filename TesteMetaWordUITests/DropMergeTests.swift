@@ -55,12 +55,12 @@ import XCTest
         XCTAssertTrue(second.waitForExistence(timeout: 5))
         guard second.exists else { return }
         sleep(2)
-        drag(app.buttons["chip-agora"], to: second, in: app)
-        let phrase = app.buttons["chip-Eu quero comer agora"]
+        drag(app.buttons["chip-mais"], to: second, in: app)
+        let phrase = app.buttons["chip-Eu quero comer mais"]
         XCTAssertTrue(phrase.waitForExistence(timeout: 5))
         guard phrase.exists else { return }
-        XCTAssertTrue(app.buttons["chip-aqui"].exists)
-        XCTAssertTrue(app.buttons["chip-ali"].exists)
+        XCTAssertTrue(app.buttons["chip-agora"].exists)
+        XCTAssertTrue(app.buttons["chip-depois"].exists)
         sleep(2)
         assertSeparatedFromFocus(phrase, in: app)
         capture(app, name: "atmosphere-long-phrase-\(renderer)")
@@ -93,10 +93,10 @@ import XCTest
         print("ATMOSPHERE_CAPTURE_UNDO_BEGIN")
         app.buttons["Desfazer"].tap()
         XCTAssertTrue(second.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["chip-agora"].exists)
+        XCTAssertTrue(app.buttons["chip-mais"].exists)
         XCTAssertFalse(phrase.exists)
-        XCTAssertFalse(app.buttons["chip-aqui"].exists)
-        XCTAssertFalse(app.buttons["chip-ali"].exists)
+        XCTAssertFalse(app.buttons["chip-agora"].exists)
+        XCTAssertFalse(app.buttons["chip-depois"].exists)
         sleep(2)
         assertSeparatedFromFocus(second, in: app)
         capture(app, name: "atmosphere-undo-\(renderer)")

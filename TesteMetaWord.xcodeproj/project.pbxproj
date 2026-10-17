@@ -15,9 +15,12 @@
 		470A173125BB5D336213E40D /* SplitTension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1857532C528EC5D7C6E146 /* SplitTension.swift */; };
 		50D20214182AA11AB8938A32 /* AtmosphereTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE40EB3EC5FE28E6F2A0627 /* AtmosphereTests.swift */; };
 		6EEBD6CA832929A8B821DD04 /* Atmosphere.metal in Sources */ = {isa = PBXBuildFile; fileRef = 82448A2C4655DB610D579422 /* Atmosphere.metal */; };
+		76E149C658032317FAD8DAF3 /* Grammar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74315932C58B74D799F7DB89 /* Grammar.swift */; };
+		7D173543A56ABA55EB2AD6E9 /* GrammarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8162F454DE48A3BA06E0F435 /* GrammarTests.swift */; };
 		8E3C844D64A96607F96A37F9 /* Vocabulary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 833A34B599762B2669F7E20D /* Vocabulary.swift */; };
 		912662A3CB404B6C622C86EF /* Sfx.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09F2C89ABE9A2EE3B728939A /* Sfx.swift */; };
 		92F44AAA890A3ABB2AAFAD62 /* CompositionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A13B7BED96173B00C8567EE /* CompositionEngine.swift */; };
+		98EB3CEEA182453DCB8BF990 /* vocabulary.json in Resources */ = {isa = PBXBuildFile; fileRef = E91266EC5CAF96A9426C2EF7 /* vocabulary.json */; };
 		99DFA67258E39A15A4DF99BE /* AtmosphereView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6C68151EA1F5914B5D4D27E /* AtmosphereView.swift */; };
 		A62B4637511A7ABE12832CE2 /* Physics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101BD15CA0217C8780B855DE /* Physics.swift */; };
 		DCAA19E2C457C58D2EC2B13F /* TouchTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5743E3EC26C935C9635869CD /* TouchTracker.swift */; };
@@ -60,12 +63,15 @@
 		6662058DC8E0F9747A861450 /* TesteMetaWord.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TesteMetaWord.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6F30F5506EE8B02A10A2009F /* SplitTensionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitTensionTests.swift; sourceTree = "<group>"; };
 		737F1D243C34A3FFC7DB735F /* SfxTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SfxTests.swift; sourceTree = "<group>"; };
+		74315932C58B74D799F7DB89 /* Grammar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Grammar.swift; sourceTree = "<group>"; };
+		8162F454DE48A3BA06E0F435 /* GrammarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrammarTests.swift; sourceTree = "<group>"; };
 		82448A2C4655DB610D579422 /* Atmosphere.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Atmosphere.metal; sourceTree = "<group>"; };
 		833A34B599762B2669F7E20D /* Vocabulary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Vocabulary.swift; sourceTree = "<group>"; };
 		A5158270BCE4B63D5C57BB8B /* DropMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropMergeTests.swift; sourceTree = "<group>"; };
 		A6C68151EA1F5914B5D4D27E /* AtmosphereView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtmosphereView.swift; sourceTree = "<group>"; };
 		CAEA6DADA86C810B4F62DDDF /* PinchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinchTests.swift; sourceTree = "<group>"; };
 		D8F844CFEA394E51847A4FB5 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		E91266EC5CAF96A9426C2EF7 /* vocabulary.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = vocabulary.json; sourceTree = "<group>"; };
 		EE303FC9CD2C075997CF8898 /* TesteMetaWordTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TesteMetaWordTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4157581E50CD14E73DCAC9B /* ChipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChipView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -98,6 +104,7 @@
 				5E4B5D344798DDF366B8A4CA /* Composition.swift */,
 				5A13B7BED96173B00C8567EE /* CompositionEngine.swift */,
 				D8F844CFEA394E51847A4FB5 /* ContentView.swift */,
+				74315932C58B74D799F7DB89 /* Grammar.swift */,
 				101BD15CA0217C8780B855DE /* Physics.swift */,
 				09F2C89ABE9A2EE3B728939A /* Sfx.swift */,
 				4A1857532C528EC5D7C6E146 /* SplitTension.swift */,
@@ -113,6 +120,7 @@
 			children = (
 				1AE40EB3EC5FE28E6F2A0627 /* AtmosphereTests.swift */,
 				407C486BBE6896E013E72904 /* CompositionTests.swift */,
+				8162F454DE48A3BA06E0F435 /* GrammarTests.swift */,
 				5B2C681D14CABAD742AFFE2F /* PhysicsTests.swift */,
 				CAEA6DADA86C810B4F62DDDF /* PinchTests.swift */,
 				737F1D243C34A3FFC7DB735F /* SfxTests.swift */,
@@ -121,9 +129,18 @@
 			path = TesteMetaWordTests;
 			sourceTree = "<group>";
 		};
+		DE760E65343913501D9778AC /* ml */ = {
+			isa = PBXGroup;
+			children = (
+				E91266EC5CAF96A9426C2EF7 /* vocabulary.json */,
+			);
+			path = ml;
+			sourceTree = "<group>";
+		};
 		E3C8A2344DF220D1EA8707D1 = {
 			isa = PBXGroup;
 			children = (
+				DE760E65343913501D9778AC /* ml */,
 				72E54599EA1491BB416417AA /* TesteMetaWord */,
 				9AD0A54AFE83CC0B09B14CCA /* TesteMetaWordTests */,
 				5827F93FE315DB9866BAF303 /* TesteMetaWordUITests */,
@@ -175,6 +192,7 @@
 			buildConfigurationList = F2A8F67B43592D7419A52E27 /* Build configuration list for PBXNativeTarget "TesteMetaWord" */;
 			buildPhases = (
 				5A66417B4373A191F2618C03 /* Sources */,
+				E2042A5712A0FA87B3BE8A5B /* Resources */,
 			);
 			buildRules = (
 			);
@@ -225,6 +243,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		E2042A5712A0FA87B3BE8A5B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				98EB3CEEA182453DCB8BF990 /* vocabulary.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		5A66417B4373A191F2618C03 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -236,6 +265,7 @@
 				E6BABDE43C610499829E4CE6 /* Composition.swift in Sources */,
 				92F44AAA890A3ABB2AAFAD62 /* CompositionEngine.swift in Sources */,
 				E2441FC276AE1D4BB2750D7E /* ContentView.swift in Sources */,
+				76E149C658032317FAD8DAF3 /* Grammar.swift in Sources */,
 				A62B4637511A7ABE12832CE2 /* Physics.swift in Sources */,
 				912662A3CB404B6C622C86EF /* Sfx.swift in Sources */,
 				470A173125BB5D336213E40D /* SplitTension.swift in Sources */,
@@ -251,6 +281,7 @@
 			files = (
 				50D20214182AA11AB8938A32 /* AtmosphereTests.swift in Sources */,
 				E60E749FEED77BBC50213C68 /* CompositionTests.swift in Sources */,
+				7D173543A56ABA55EB2AD6E9 /* GrammarTests.swift in Sources */,
 				441D23E0D0F273F50D44C050 /* PhysicsTests.swift in Sources */,
 				E60E00B22888172BA463529C /* PinchTests.swift in Sources */,
 				185C556448EF9F2440466612 /* SfxTests.swift in Sources */,
