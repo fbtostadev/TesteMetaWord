@@ -30,16 +30,6 @@ struct SplitTensionTests {
         #expect(rms(samples.suffix(fifth)) > 4 * rms(samples.prefix(fifth)))
     }
 
-    @Test func popIsShortWithItsPeakAtTheStart() {
-        let samples = SplitTension.popSamples()
-        let seconds = Double(samples.count) / SplitTension.sampleRate
-        #expect(seconds > 0.05 && seconds <= 0.12)
-        #expect(samples.allSatisfy { abs($0) <= 1 })
-        let peakIndex = samples.indices.max { abs(samples[$0]) < abs(samples[$1]) } ?? 0
-        #expect(Double(peakIndex) / SplitTension.sampleRate < 0.01)
-        #expect(rms(samples.suffix(samples.count / 10)) < 0.01)
-    }
-
     private func rms<C: Collection<Float>>(_ samples: C) -> Float {
         (samples.reduce(0) { $0 + $1 * $1 } / Float(max(1, samples.count))).squareRoot()
     }

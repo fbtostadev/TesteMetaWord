@@ -37,38 +37,25 @@ enum SplitTension {
             let depth = 1 - 0.8 * (0.5 - 0.5 * sin(tremolo))
             let tail = min(1, Double(count - index) / (0.008 * sampleRate)) // no click at the end
             let tone = (sin(carrier) + 0.35 * sin(2 * carrier)) / 1.35
-            return Float(0.22 * p * p * depth * tail * tone)
-        }
-    }
-
-    /// A light bubble pop: a quick rising chirp with a tiny noise click, gone in 90 ms.
-    static func popSamples() -> [Float] {
-        let count = Int(0.09 * sampleRate)
-        var phase = 0.0, seed: UInt32 = 0x2545F491
-        return (0..<count).map { index in
-            let t = Double(index) / sampleRate
-            phase += 2 * .pi * (320 + 700 * (1 - exp(-t / 0.015))) / sampleRate
-            seed = seed &* 1_664_525 &+ 1_013_904_223
-            let noise = Double(seed) / Double(UInt32.max) * 2 - 1
-            let envelope = min(1, t / 0.0015) * exp(-t / 0.016)
-            return Float(0.55 * envelope * sin(phase) + 0.35 * exp(-t / 0.002) * noise)
+            return Float(0.09 * p * p * depth * tail * tone)
         }
     }
 }
 
-/// Plays the tension hum and the pop. Ambient audio: respects silent mode and mixes with others.
+/// Plays the tension hum and the split chime. Ambient audio: respects silent mode and mixes with others.
 @MainActor final class SplitSound {
     private let engine = AVAudioEngine()
     private let hum = AVAudioPlayerNode()
     private let pop = AVAudioPlayerNode()
     private let format = AVAudioFormat(standardFormatWithSampleRate: SplitTension.sampleRate, channels: 1)!
+    var muted = false
     private var humBuffer: AVAudioPCMBuffer?
     private var popBuffer: AVAudioPCMBuffer?
     /// Bumped on every begin, so a fade from an earlier press never stops a newer one.
     private var generation = 0
 
     func begin() {
-        guard start(), let humBuffer else { return }
+        guard !muted, start(), let humBuffer else { return }
         generation += 1
         hum.stop()
         hum.volume = 1
@@ -80,7 +67,7 @@ enum SplitTension {
     func cancel() { fadeHum() }
 
     func burst() {
-        guard start(), let popBuffer else { return }
+        guard !muted, start(), let popBuffer else { return }
         fadeHum()
         pop.stop()
         pop.scheduleBuffer(popBuffer)
@@ -92,10 +79,10 @@ enum SplitTension {
             try? AVAudioSession.sharedInstance().setCategory(.ambient)
             engine.attach(hum)
             engine.attach(pop)
-            engine.connect(hum, to: engine.mainMixerNode, format: format)
-            engine.connect(pop, to: engine.mainMixerNode, format: format)
             humBuffer = buffer(SplitTension.tremorSamples())
-            popBuffer = buffer(SplitTension.popSamples())
+            popBuffer = buffer(SfxSynth.samples(.split))
+            engine.connect(hum, to: engine.mainMixerNode, format: humBuffer?.format ?? format)
+            engine.connect(pop, to: engine.mainMixerNode, format: popBuffer?.format ?? format)
         }
         if !engine.isRunning { try? engine.start() }
         return engine.isRunning

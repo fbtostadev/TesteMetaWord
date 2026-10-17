@@ -18,6 +18,8 @@ struct ContentView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .title3) private var fontSize = 20.0
     @State private var splitSound = SplitSound()
+    @State private var sfx = Sfx()
+    @State private var soundsOn = true
     /// The master bubble under a long press that will split it, and when the press began.
     @State private var tension: (id: UUID, start: TimeInterval)?
     @GestureState private var pressing: UUID?
@@ -158,7 +160,7 @@ struct ContentView: View {
                                 guard canSplit(chip.id) else { return }
                                 ignoreTapUntil = Date().addingTimeInterval(0.4)
                                 splitSound.burst()
-                                undo(chip.id, space)
+                                undo(chip.id, space, quiet: true)
                             })
                     }
                 }
@@ -169,6 +171,10 @@ struct ContentView: View {
         .gesture(TouchTracker { touches = $0 })
         .onGeometryChange(for: CGPoint.self) { $0.frame(in: .global).origin } action: { canvasOrigin = $0 }
         .onChange(of: touches) { trackPinch(space) }
+        .onChange(of: soundsOn, initial: true) { sfx.muted = !soundsOn; splitSound.muted = !soundsOn }
+        .onChange(of: composition.rejecting) { _, rejecting in
+            if rejecting { sfx.play(.error) }
+        }
         .onChange(of: pressing) { _, id in
             if let id, canSplit(id) {
                 tension = (id, Date().timeIntervalSinceReferenceDate)
@@ -307,6 +313,8 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("atmosphere-renderer-status")
             }
+            Toggle("Sons", isOn: $soundsOn)
+                .accessibilityIdentifier("sounds-toggle")
             Text("Distância: \(Int(state.calibration.distance)) pt")
             Slider(value: $state.calibration.distance, in: 8...60, step: 1) { Text("Distância") }
             Button("Restaurar valores") { state.calibration = Calibration() }
@@ -380,12 +388,14 @@ struct ContentView: View {
     /// Runs a composition change and gives each new word a body. New words are born where the
     /// words they replace were: the one inheriting a removed glass identity stays at the core and
     /// the others bud out (fusion → suggestions, undo → the second origin).
-    private func apply(_ space: Space, _ change: () -> Void) {
+    private func apply(_ space: Space, quiet: Bool = false, _ change: () -> Void) {
         let before = composition.chips
         withAnimation(birth) { change() }
         let after = composition.chips
         let removed = before.filter { old in !after.contains { $0.id == old.id } }
         let added = after.filter { new in !before.contains { $0.id == new.id } }
+        // A fusion consumes the pair; an Undo consumes the result. The long-press split has its own sound.
+        if !added.isEmpty, !quiet { sfx.play(removed.count == 2 ? .fusion : .split) }
         let core = added.first { new in removed.contains { $0.glassID == new.glassID } }
         let anchor = core.flatMap { core in removed.first { $0.glassID == core.glassID } }
         let removedPositions = removed.compactMap { bodies[$0.id]?.position }
@@ -579,13 +589,14 @@ struct ContentView: View {
         settleIfReduced(space)
     }
 
-    private func undo(_ id: UUID?, _ space: Space) {
+    /// `quiet` skips the split chime when the long-press burst already marks the moment.
+    private func undo(_ id: UUID?, _ space: Space, quiet: Bool = false) {
         dropPinch()
         fusionTask?.cancel()
         fusionTask = nil
         fusingPair = nil
         dragOrigin = nil
-        apply(space) { composition.undo(from: id) }
+        apply(space, quiet: quiet) { composition.undo(from: id) }
     }
 }
 

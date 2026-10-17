@@ -47,7 +47,8 @@ struct Calibration: Equatable {
     private(set) var resistance = 0.0
     /// Pair armed by deep overlap during a drag; releasing confirms it.
     private(set) var dropCandidate: MergePair?
-    private var approachTarget: UUID?
+    /// Compatible chip within approach distance of the one being handled.
+    private(set) var approachTarget: UUID?
     private var advanceDepth = 0.0
     private var advancedAt: TimeInterval = 0
     var calibration = Calibration() { didSet { cancel() } }
@@ -87,6 +88,12 @@ struct Calibration: Equatable {
     }
     var activePair: MergePair? {
         candidate ?? pinching ?? dragging.flatMap { source in approachTarget.map { MergePair(source: source, target: $0) } }
+    }
+
+    /// A pinch whose pair cannot fuse and whose surfaces already touch: only the membrane resists.
+    var rejecting: Bool {
+        guard let pinching else { return false }
+        return resistance > 0 && !compatible(pinching.source, pinching.target)
     }
 
     func compatible(_ a: UUID, _ b: UUID) -> Bool {

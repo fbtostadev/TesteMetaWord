@@ -74,4 +74,31 @@ import CoreGraphics
         #expect(Physics.hit(CGPoint(x: 135, y: 100), centers: centers, sizes: sizes) == a) // overlap: nearest center
         #expect(Physics.hit(CGPoint(x: 400, y: 400), centers: centers, sizes: sizes) == nil)
     }
+
+    @Test func rejectingOnlyWhileAnIncompatiblePinchTouches() {
+        let c = Composition()
+        c.beginPinch(c.chips[4].id, c.chips[5].id) // eu, brincar
+        #expect(!c.rejecting)
+        c.updatePinch(penetration: 0.9, time: 0.1)
+        #expect(c.rejecting)
+        c.updatePinch(penetration: nil, time: 0.2)
+        #expect(!c.rejecting)
+        let ok = Composition()
+        ok.beginPinch(ok.chips[0].id, ok.chips[1].id)
+        ok.updatePinch(penetration: 0.3, time: 0)
+        #expect(!ok.rejecting)
+    }
+
+    @Test func approachTargetFollowsACompatibleNeighbourAndClearsOnCancel() {
+        let c = Composition()
+        let a = c.chips[0].id, b = c.chips[1].id
+        c.beginDrag(a)
+        c.updateProximity(target: b, penetration: 0.1, time: 0)
+        #expect(c.approachTarget == b)
+        c.updateProximity(target: nil, penetration: 0, time: 0.1)
+        #expect(c.approachTarget == nil)
+        c.updateProximity(target: b, penetration: 0.1, time: 0.2)
+        c.cancel()
+        #expect(c.approachTarget == nil)
+    }
 }
