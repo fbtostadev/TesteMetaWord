@@ -9,6 +9,10 @@ struct ContentView: View {
     @State private var fusionTask: Task<Void, Never>?
     @State private var fusingPair: MergePair?
     @State private var passiveTask: Task<Void, Never>?
+    /// Idle watchdog: since when the physics has been held with no finger on the screen, and
+    /// whether a waiting tap selection has stopped holding it.
+    @State private var heldSince: TimeInterval?
+    @State private var selectionReleased = false
     @State private var showCalibration = false
     /// The atmosphere shader draws once it has compiled; without it the canvas stays plain.
     @State private var metalReady = false
@@ -334,14 +338,46 @@ struct ContentView: View {
     /// The composition holds still during the act (drag, selection, prepared pair, fusion);
     /// repulsion and the zones reorganize it only afterwards.
     private var isActing: Bool {
-        showCalibration || composition.dragging != nil || composition.selected != nil || composition.candidate != nil
-            || composition.pinching != nil || fusingPair != nil
+        let waiting = (composition.selected != nil || composition.candidate != nil) && !selectionReleased
+        return showCalibration || composition.dragging != nil || waiting || composition.pinching != nil || fusingPair != nil
+    }
+
+    /// Acts never leave the composition frozen. With no finger on the screen, an act left half
+    /// done (a drag or pinch whose end never arrived, a fusion that never finished) is cleared
+    /// after `staleAct`; a tap selection waiting for its partner stops holding the physics after
+    /// `selectionHold` and stays selected. Either way the words drift home gently.
+    private static let staleAct: TimeInterval = 1.5
+    private static let selectionHold: TimeInterval = 4
+
+    private func watchdog(_ now: TimeInterval, _ space: Space) {
+        guard isActing, touches.isEmpty, !showCalibration else {
+            heldSince = nil
+            if composition.selected == nil && composition.candidate == nil { selectionReleased = false }
+            return
+        }
+        let held = now - (heldSince ?? now)
+        if heldSince == nil { heldSince = now }
+        let stale = composition.dragging != nil || composition.pinching != nil || pinch != nil || fusingPair != nil
+        if stale, held > Self.staleAct {
+            cancel(space)
+            easeHome()
+        } else if !stale, held > Self.selectionHold {
+            selectionReleased = true
+            easeHome()
+        }
+    }
+
+    /// Every word sets off for home along the ease-in curve of a release.
+    private func easeHome() {
+        heldSince = nil
+        for id in bodies.keys { bodies[id]?.ramp = 0 }
     }
 
     private func tick(_ date: Date, _ space: Space) {
         defer { lastTick = date }
         if composition.dragging != nil { updateProximity(space, time: date.timeIntervalSinceReferenceDate) }
         if composition.pinching != nil { updatePinchProximity(space) }
+        watchdog(date.timeIntervalSinceReferenceDate, space)
         guard !reduceMotion, !isActing, let lastTick else { return }
         simulate(space, dt: min(1.0 / 30, date.timeIntervalSince(lastTick)))
     }
@@ -392,6 +428,8 @@ struct ContentView: View {
             confirmCandidate(pair, space)
             return
         }
+        selectionReleased = false
+        heldSince = nil
         withAnimation(motion) { composition.tap(id) }
         settleIfReduced(space)
     }
@@ -602,8 +640,10 @@ struct ContentView: View {
                         if let p = bodies[pair.keeper]?.position { bodies[pair.duplicate] = Physics.Body(position: p) }
                     }
                 }
-                do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+                // Release the pair even if cancelled: a pair left fusing would freeze the physics.
+                let glided = (try? await Task.sleep(for: .milliseconds(250))) != nil
                 fusingPair = nil
+                guard glided else { return }
             }
             guard composition.chips.map(\.id) == ids else { return }
             apply(space, sound: nil) { composition.absorbDuplicates() }
