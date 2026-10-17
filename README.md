@@ -14,7 +14,7 @@ Veja os comandos e a estrutura em [Git no LAB](docs/GIT.md).
 
 ## Uso
 
-Ao abrir, as palavras brotam do centro; **querer** (a palavra com mais combinações) é o centro óptico, cercado pela zona interna. Arraste **ir** sobre **querer** até armar (realce branco e pulso) e solte: as duas convergem, **Quero ir** nasce no ponto de encontro, **agora** e **depois** brotam dele, e **Quero ir** migra para o centro. Palavras que combinam com o foco ficam na zona interna; as que só combinam entre si, na média; as sem combinação, na externa. Durante o gesto a composição fica parada; ela se reorganiza depois.
+Ao abrir, as palavras brotam do centro; **querer** (a palavra com mais combinações) é o centro óptico, cercado pela zona interna. Arraste **ir** sobre **querer** até armar (realce branco e pulso) e solte: as duas convergem, **Quero ir** nasce no ponto de encontro, **agora** e **depois** brotam dele, e **Quero ir** migra para o centro. Palavras que combinam com o foco ficam na zona interna; as que só combinam entre si, na média; as sem combinação, na externa. Durante o gesto a composição fica parada; ela se reorganiza depois. Sobre a BubbleKey, o dedo escolhe a fresta: arraste **eu** até a ponta esquerda de **Quero ir** e a frase se abre ali (“Eu quero ir”); na ponta direita, “Quero ir eu”. Num par por toque, as setas ← → movem a fresta.
 
 Com dois dedos, repouse um sobre **querer** e outro sobre **ir** e aproxime-os numa pinça até armar; tirar um dos dedos funde. Também é possível tocar querer → ir → um dos dois. Tocar no fundo cancela. `<` desfaz, dividindo o resultado; pressionar o resultado da última fusão por 0,6 s também desfaz: durante a pressão a bolha treme cada vez mais e um som tremular cresce, até a divisão, marcada por uma nota curta (o iPad não tem háptico para o dedo; o som faz esse papel). Os sons são de fundo: fusão, divisão, erro da pinça incompatível e um tom contínuo que acompanha a profundidade da sobreposição, em volume baixo, e o interruptor "Sons" os silencia. O botão de ajustes abre a calibração da distância de aproximação, o interruptor de sons e a escolha de atmosfera Metal/Gradientes. Metal é o padrão nesta branch; Gradientes mantém a referência para comparação. O painel confirma qual desenho está ativo. A troca preserva a composição e o Undo, e não é salva entre sessões.
 
@@ -31,7 +31,8 @@ Estado e parâmetros vivem apenas na sessão. Sem SwiftData, voz ou serviços re
 - `TesteMetaWord/ContentView.swift`: canvas, `TimelineView` como relógio da física, atmosferas, gestos e animações.
 - `TesteMetaWord/AtmosphereView.swift`: parâmetros do shader da atmosfera e sua interpolação.
 - `TesteMetaWord/Atmosphere.metal`: faixas suaves, união luminosa das cápsulas e deformação localizada.
-- `TesteMetaWord/ChipView.swift`: cápsula de vidro, estado armado e pulso.
+- `TesteMetaWord/ChipView.swift`: cápsula de vidro, estado armado e pulso; a BubbleKey palavra por palavra, com a fresta aberta.
+- `TesteMetaWord/PhraseLayout.swift`: molduras das palavras pelo layout de texto, fresta sob o dedo (com histerese) e alvos de cada palavra.
 - `TesteMetaWord/TouchTracker.swift`: observador UIKit dos dedos na tela (posição e quantidade), sem consumir toques; base da pinça.
 - `TesteMetaWord/SplitTension.swift`: tensão do long press (curva do tremor, síntese do som tremular, reprodução).
 - `TesteMetaWord/Sfx.swift`: sons de fundo sintetizados (fusão, divisão, erro) e seu player.
