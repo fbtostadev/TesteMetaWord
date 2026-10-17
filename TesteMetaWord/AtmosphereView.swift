@@ -42,6 +42,8 @@ struct AtmosphereFrame: VectorArithmetic, Sendable {
     var source = SIMD4<Double>.zero
     var target = SIMD4<Double>.zero
     var zones = SIMD3<Double>.zero
+    /// Ring gap of each zone; animates as outer zones close in on the focus.
+    var gaps = SIMD3<Double>.zero
     var pairIntensity = 0.0
     var proximity = 0.0
     var pairVisibility = 0.0
@@ -51,6 +53,7 @@ struct AtmosphereFrame: VectorArithmetic, Sendable {
     init(input: AtmosphereInput) {
         focus = Self.rectangle(input.focus)
         if input.focus.width > 0 && input.focus.height > 0 {
+            gaps = SIMD3((1...3).map { Double(Physics.zoneGap($0, occupied: input.occupied)) })
             zones = SIMD3(input.occupied.contains(1) ? (input.focusEngaged ? 0.085 : 0.06) : 0,
                           input.occupied.contains(2) ? 0.035 : 0,
                           input.occupied.contains(3) ? 0.022 : 0)
@@ -75,7 +78,7 @@ struct AtmosphereFrame: VectorArithmetic, Sendable {
         var shader = ShaderLibrary.atmosphere(
             .float4(focus.x, focus.y, focus.z, focus.w),
             .float3(zones.x, zones.y, zones.z),
-            .float3(Physics.zoneGap(1), Physics.zoneGap(2), Physics.zoneGap(3)),
+            .float3(gaps.x, gaps.y, gaps.z),
             .float4(source.x, source.y, source.z, source.w),
             .float4(target.x, target.y, target.z, target.w),
             .float(pairIntensity), .float(proximity), .float(pairVisibility))
@@ -90,6 +93,7 @@ struct AtmosphereFrame: VectorArithmetic, Sendable {
         result.source = a.source + b.source
         result.target = a.target + b.target
         result.zones = a.zones + b.zones
+        result.gaps = a.gaps + b.gaps
         result.pairIntensity = a.pairIntensity + b.pairIntensity
         result.proximity = a.proximity + b.proximity
         result.pairVisibility = a.pairVisibility + b.pairVisibility
@@ -105,13 +109,14 @@ struct AtmosphereFrame: VectorArithmetic, Sendable {
         source *= value
         target *= value
         zones *= value
+        gaps *= value
         pairIntensity *= value
         proximity *= value
         pairVisibility *= value
     }
     var magnitudeSquared: Double {
         simd_dot(focus, focus) + simd_dot(source, source) + simd_dot(target, target)
-            + simd_dot(zones, zones) + pairIntensity * pairIntensity + proximity * proximity
+            + simd_dot(zones, zones) + simd_dot(gaps, gaps) + pairIntensity * pairIntensity + proximity * proximity
             + pairVisibility * pairVisibility
     }
 }
@@ -174,8 +179,10 @@ struct AtmosphereView: View {
         return ZStack(alignment: .topLeading) {
             if size.width > 0 && size.height > 0 {
                 ForEach(input.occupied.sorted(), id: \.self) { zone in
-                    let reach = 2 * (Physics.zoneGap(zone) + 68)
-                    let inner = zone == 1 ? 0.12 : (size.height / 2 + Physics.zoneGap(zone - 1) + 36) / ((size.height + reach) / 2)
+                    let gap = Physics.zoneGap(zone, occupied: input.occupied)
+                    let reach = 2 * (gap + 68)
+                    // The innermost ring starts at the focus; the others after the previous ring.
+                    let inner = gap <= Physics.restGap ? 0.12 : (size.height / 2 + gap - Physics.zoneSpacing + 36) / ((size.height + reach) / 2)
                     EllipticalGradient(gradient: Gradient(stops: [
                         .init(color: .clear, location: 0),
                         .init(color: .clear, location: inner),

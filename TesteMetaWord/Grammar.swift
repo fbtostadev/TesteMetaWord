@@ -20,6 +20,8 @@ struct Grammar: Sendable {
     private let slotOf: [String: Slot]
     /// Single words.
     let atoms: Set<String>
+    /// Every word with its slot, in slot order and then in the order of the vocabulary file.
+    private let ranked: [(word: String, slot: Slot)]
     /// Every strong phrase by its rendered text.
     private var phrases: [String: Frame] = [:]
     /// Medium results rendered so far, so they keep fusing by their slots.
@@ -51,6 +53,13 @@ struct Grammar: Sendable {
         for interjection in spec.interjections { slotOf[interjection] = .interjection }
         self.slotOf = slotOf
         atoms = Set(slotOf.keys).union(spec.extraWords)
+        let verbSpecs = spec.verbs
+        let verbs = verbSpecs.keys.sorted()
+        let tails = verbs.flatMap { verbSpecs[$0]!.complements } + spec.quantities
+        ranked = spec.subjects.keys.sorted().map { ($0, Slot.subject) } + [(spec.negation, .negation)]
+            + spec.modals.map { ($0, .modal) } + verbs.map { ($0, .verb) } + tails.map { ($0, .tail) }
+            + spec.times.map { ($0, .time) } + spec.places.map { ($0, .place) }
+            + spec.interjections.map { ($0, .interjection) }
         phrases = Dictionary(frames().map { (render($0), $0) }) { first, _ in first }
     }
 
@@ -78,6 +87,28 @@ struct Grammar: Sendable {
         let suggestions = (lead.frame ?? rest.frame).map(suggestions(for:)) ?? spec.afterComplementSuggest
         let text = lead.text + joiner + tail
         return Vocabulary.Combination(result: text.prefix(1).uppercased() + text.dropFirst(), suggestions: suggestions, strength: 3)
+    }
+
+    /// Up to `count` words related to `text`, for a shake: words for the slots right after its last
+    /// one first (the natural continuation), then the slots before it; within a slot, the ones
+    /// that would make a full phrase. Skips words already present and slots `text` already fills.
+    /// A text the grammar did not write continues after a verb.
+    func related(to text: String, excluding present: Set<String>, count: Int = 3) -> [String] {
+        let frame = frame(of: text)
+        let last = frame?.lastIndex { $0 != nil } ?? Slot.verb.rawValue
+        func distance(_ slot: Slot) -> Int { slot.rawValue > last ? slot.rawValue - last : 100 + last - slot.rawValue }
+        func fit(_ word: String, _ slot: Slot) -> Int {
+            guard var merged = frame else { return 1 }
+            merged[slot.rawValue] = word
+            if merged[Slot.modal.rawValue] == nil { merged[Slot.modal.rawValue] = spec.modals.first }
+            return isStrong(merged) ? 0 : 1
+        }
+        return ranked.enumerated()
+            .filter { _, c in c.word != text && !present.contains(c.word) && (frame.map { $0[c.slot.rawValue] == nil } ?? true) }
+            .map { offset, c in (word: c.word, key: (distance(c.slot), fit(c.word, c.slot), offset)) }
+            .sorted { $0.key < $1.key }
+            .prefix(count)
+            .map(\.word)
     }
 
     /// A phrase's frame, or a one-slot frame for a word; `nil` for a text the grammar did not write.

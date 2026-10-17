@@ -30,8 +30,21 @@ struct PhysicsTests {
         }
         let ids = Array(sizes.keys)
         for a in ids {
-            for b in ids where a != b { #expect(gap(bodies, sizes, a, b) > 32, "no glass bridge at rest") }
+            for b in ids where a != b { #expect(gap(bodies, sizes, a, b) > Physics.glassSpacing, "no glass bridge at rest") }
         }
+    }
+
+    @Test func outerZonesCloseInWhenInnerOnesAreEmpty() {
+        #expect(Physics.zoneGap(3, occupied: [3]) == Physics.zoneGap(1), "a lone outer zone takes the inner ring")
+        #expect(Physics.zoneGap(3, occupied: [1, 3]) == Physics.zoneGap(2))
+        #expect(Physics.zoneGap(2, occupied: [2, 3]) == Physics.zoneGap(1))
+        let focus = UUID(), outer = UUID()
+        let sizes = [focus: CGSize(width: 120, height: 58), outer: CGSize(width: 96, height: 56)]
+        var bodies = Physics.spawn([focus, outer], core: focus, at: center, seed: focus)
+        for _ in 0..<240 {
+            Physics.step(&bodies, sizes: sizes, focus: focus, zones: [outer: 3], center: center, bounds: bounds, dt: 1.0 / 60)
+        }
+        #expect(abs(gap(bodies, sizes, outer, focus) - Physics.zoneGap(1)) < 8, "it sits beside the focus")
     }
 
     @Test func zoneMembersSpreadEvenlyAroundTheFocus() {

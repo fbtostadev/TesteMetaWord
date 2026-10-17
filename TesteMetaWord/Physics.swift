@@ -6,12 +6,13 @@ import Foundation
 /// slot on the ring of its atmosphere zone (see `targets`), and repulsion keeps cells from
 /// touching. The view freezes the physics during a gesture and adds the idle orbit on top.
 enum Physics {
-    /// Resting gap between surfaces. Larger than the GlassEffectContainer spacing (32 pt),
-    /// so words never bridge at rest.
-    static let restGap: CGFloat = 40
+    /// Surfaces closer than this merge into one glass shape (the GlassEffectContainer spacing).
+    static let glassSpacing: CGFloat = 24
+    /// Resting gap between surfaces. Larger than `glassSpacing`, so words never bridge at rest.
+    static let restGap: CGFloat = 30
     static let stiffness: CGFloat = 150
-    /// Each zone sits one word layer (56 pt + rest gap) beyond the previous one.
-    static let zoneSpacing: CGFloat = 96
+    /// Each occupied zone sits one word layer (56 pt + rest gap) beyond the previous one.
+    static let zoneSpacing: CGFloat = 86
     /// Spring toward each word's target (slot or canvas center), close to critically damped.
     static let pull: CGFloat = 120
     static let damping: CGFloat = 18
@@ -29,7 +30,10 @@ enum Physics {
     }
 
     /// Target surface distance from the focus for atmosphere zone 1 (inner), 2 or 3 (outer).
-    static func zoneGap(_ zone: Int) -> CGFloat { restGap + CGFloat(zone - 1) * zoneSpacing }
+    /// Empty zones take no ring: an outer zone closes in on the focus when the inner ones empty.
+    static func zoneGap(_ zone: Int, occupied: Set<Int> = [1, 2, 3]) -> CGFloat {
+        restGap + CGFloat(occupied.count { $0 < zone }) * zoneSpacing
+    }
 
     static func rect(_ center: CGPoint, _ size: CGSize) -> CGRect {
         CGRect(x: center.x - size.width / 2, y: center.y - size.height / 2, width: size.width, height: size.height)
@@ -100,7 +104,8 @@ enum Physics {
     static func targets(_ bodies: [UUID: Body], sizes: [UUID: CGSize], focus: UUID?, zones: [UUID: Int], center: CGPoint) -> [UUID: CGPoint] {
         guard let focus, let core = bodies[focus]?.position, let coreSize = sizes[focus] else { return [:] }
         var targets = [focus: center]
-        for zone in Set(zones.values) {
+        let occupied = Set(zones.values)
+        for zone in occupied {
             let members = zones.keys
                 .filter { zones[$0] == zone && bodies[$0] != nil && sizes[$0] != nil }
                 .map { id in (id: id, angle: atan2(bodies[id]!.position.y - core.y, bodies[id]!.position.x - core.x)) }
@@ -117,7 +122,7 @@ enum Physics {
                 for _ in 0..<18 {
                     let mid = (near + far) / 2
                     let point = CGPoint(x: core.x + direction.dx * mid, y: core.y + direction.dy * mid)
-                    if signedDistance(rect(point, size), rect(core, coreSize)) < zoneGap(zone) { near = mid } else { far = mid }
+                    if signedDistance(rect(point, size), rect(core, coreSize)) < zoneGap(zone, occupied: occupied) { near = mid } else { far = mid }
                 }
                 targets[member.id] = CGPoint(x: core.x + direction.dx * far, y: core.y + direction.dy * far)
             }

@@ -8,6 +8,8 @@ struct Lexicon: Equatable {
     var focus: String?
     /// Atmosphere zone (1 inner … 3 outer) of every word except the focus.
     var zones: [String: Int] = [:]
+    /// Words a shake buds from each word, none of them already present.
+    var related: [String: [String]] = [:]
 }
 
 /// Source of combinations, suggestions, focus and zones, asked after every change of the word
@@ -32,8 +34,10 @@ struct RuleEngine: CompositionEngine {
         // Without a fusion, the word with the most strong fusions (the first on ties).
         func strong(_ word: String) -> Int { words.count { fusions[[word, $0]]?.strength == 1 } }
         let center = focus ?? words.max { strong($0) < strong($1) }
-        guard let center else { return Lexicon(fusions: fusions) }
+        let present = Set(words)
+        let related = Dictionary(words.map { ($0, Vocabulary.related(to: $0, excluding: present)) }) { first, _ in first }
+        guard let center else { return Lexicon(fusions: fusions, related: related) }
         let zones = Dictionary(words.filter { $0 != center }.map { ($0, Vocabulary.zone(of: $0, focus: center)) }) { first, _ in first }
-        return Lexicon(fusions: fusions, focus: center, zones: zones)
+        return Lexicon(fusions: fusions, focus: center, zones: zones, related: related)
     }
 }

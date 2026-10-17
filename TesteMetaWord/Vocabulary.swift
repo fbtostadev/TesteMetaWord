@@ -14,6 +14,11 @@ enum Vocabulary {
         Grammar.shared.fuse(a, b)
     }
 
+    /// Up to three words related to `text`, budded by a shake (see `Grammar.related`).
+    static func related(to text: String, excluding present: Set<String>) -> [String] {
+        Grammar.shared.related(to: text, excluding: present)
+    }
+
     /// Relevance of `word` to the composition's optical center, as an atmosphere zone: the
     /// strength of their fusion (every pair fuses; farther zones fuse more loosely).
     static func zone(of word: String, focus: String) -> Int {

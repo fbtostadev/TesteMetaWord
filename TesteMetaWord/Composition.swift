@@ -54,7 +54,8 @@ struct Calibration: Equatable {
     private var advanceDepth = 0.0
     private var advancedAt: TimeInterval = 0
     var calibration = Calibration() { didSet { cancel() } }
-    private var history: [(chips: [WordChip], result: UUID)] = []
+    /// Snapshots before each fusion (with its result) or shake (no result), for Undo.
+    private var history: [(chips: [WordChip], result: UUID?)] = []
 
     /// `initial` is the lexicon of the initial words until the engine first answers.
     init(engine: any CompositionEngine = RuleEngine(), initial: Lexicon = RuleEngine.lexicon(for: Vocabulary.initial, focus: nil)) {
@@ -64,7 +65,10 @@ struct Calibration: Equatable {
     }
 
     var canUndo: Bool { !history.isEmpty }
-    var latestResult: UUID? { history.last?.result }
+    /// Result of the latest fusion still standing, even under later shakes.
+    var latestResult: UUID? { history.last { $0.result != nil }?.result }
+    /// The result a long press divides: the latest fusion, if nothing came after it.
+    var splittable: UUID? { history.last?.result }
 
     /// Optical center: the latest fusion result, or else the engine's pick.
     var focus: UUID? {
@@ -222,8 +226,22 @@ struct Calibration: Equatable {
         cancel()
     }
 
+    /// Shake: the bubble buds the engine's related words, keeping its place. True if any budded.
+    @discardableResult func derive(from id: UUID) -> Bool {
+        guard let chip = chips.first(where: { $0.id == id }) else { return false }
+        let present = Set(chips.map(\.text))
+        let words = (lexicon.related[chip.text] ?? []).filter { !present.contains($0) }
+        guard !words.isEmpty else { return false }
+        history.append((chips, nil))
+        for (k, text) in words.enumerated() {
+            chips.append(WordChip(text, phase: chip.phase + Physics.familyLag * Double(k + 1)))
+        }
+        cancel()
+        return true
+    }
+
     func undo(from id: UUID? = nil) {
-        guard id == nil || id == latestResult, let snapshot = history.popLast() else { return }
+        guard id == nil || id == splittable, let snapshot = history.popLast() else { return }
         chips = snapshot.chips
         cancel()
     }

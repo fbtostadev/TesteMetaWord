@@ -30,6 +30,7 @@ struct ContentView: View {
     @State private var pinch: Pinch?
     /// Chips whose finger outlived a pinch; ignored until every finger lifts.
     @State private var suppressed: Set<UUID> = []
+    @State private var shake = ShakeDetector()
 
     private var motion: Animation? { reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.82) }
     /// Births and removals: a quick spring for the budding, a plain dissolve with Reduce Motion.
@@ -131,17 +132,18 @@ struct ContentView: View {
                 input: atmosphereInput(space, time: time),
                 renderer: atmosphereRenderer == .metal && metalReady ? .metal : .gradients
             )
-            GlassEffectContainer(spacing: 32) {
+            GlassEffectContainer(spacing: Physics.glassSpacing) {
                 ZStack(alignment: .topLeading) {
                     ForEach(composition.chips) { chip in
                         ChipView(
                             chip: chip, size: space.sizes[chip.id] ?? .zero,
                             selected: composition.selected == chip.id || composition.activePair?.contains(chip.id) == true,
                             armed: composition.dropCandidate?.contains(chip.id) == true || composition.candidate?.contains(chip.id) == true,
-                            canUndo: composition.latestResult == chip.id,
+                            canUndo: composition.splittable == chip.id,
                             namespace: glass,
                             activate: { activate(chip.id, space) },
-                            undo: { undo(chip.id, space) }
+                            undo: { undo(chip.id, space) },
+                            derive: { derive(chip.id, space) }
                         )
                         .overlay {
                             Capsule().strokeBorder(.white.opacity(composition.dragging == chip.id || composition.pinching?.contains(chip.id) == true ? composition.resistance * 0.85 : 0), lineWidth: 2)
@@ -191,7 +193,7 @@ struct ContentView: View {
     /// Only the latest result divides, never in the middle of another act or with two fingers down.
     private func canSplit(_ id: UUID) -> Bool {
         fusingPair == nil && composition.dragging == nil && composition.pinching == nil
-            && touches.count <= 1 && !suppressed.contains(id) && composition.latestResult == id
+            && touches.count <= 1 && !suppressed.contains(id) && composition.splittable == id
     }
 
     /// Long-press tension on the master bubble. No tremor with Reduce Motion; the sound remains.
@@ -390,7 +392,7 @@ struct ContentView: View {
     /// Runs a composition change and gives each new word a body. New words are born where the
     /// words they replace were: the one inheriting a removed glass identity stays at the core and
     /// the others bud out (fusion → suggestions, undo → the second origin).
-    private func apply(_ space: Space, quiet: Bool = false, _ change: () -> Void) {
+    private func apply(_ space: Space, quiet: Bool = false, origin: CGPoint? = nil, _ change: () -> Void) {
         let before = composition.chips
         withAnimation(birth) { change() }
         let after = composition.chips
@@ -404,7 +406,7 @@ struct ContentView: View {
         let centroid = removedPositions.isEmpty ? space.center : CGPoint(
             x: removedPositions.map(\.x).reduce(0, +) / CGFloat(removedPositions.count),
             y: removedPositions.map(\.y).reduce(0, +) / CGFloat(removedPositions.count))
-        let origin = anchor.flatMap { bodies[$0.id]?.position } ?? centroid
+        let origin = origin ?? anchor.flatMap { bodies[$0.id]?.position } ?? centroid
         for chip in removed { bodies[chip.id] = nil }
         if let seed = (core ?? added.first)?.id {
             bodies.merge(Physics.spawn(added.map(\.id), core: core?.id, at: origin, seed: seed)) { $1 }
@@ -454,9 +456,11 @@ struct ContentView: View {
                 let now = Date().timeIntervalSinceReferenceDate
                 if composition.dragging != id {
                     dragOrigin = rendered(chip, space, time: now)
+                    shake = ShakeDetector()
                     composition.beginDrag(id)
                 }
                 moveDragged(id, translation: value.translation, space)
+                if shake.add(value.location, time: now) { return shakeOff(id, space) }
                 updateProximity(space, time: now)
             }
             .onEnded { value in
@@ -472,6 +476,24 @@ struct ContentView: View {
                     settleIfReduced(space)
                 }
             }
+    }
+
+    /// The shaken bubble lets go where it is and buds related words; the rest of the drag is
+    /// ignored until the finger lifts.
+    private func shakeOff(_ id: UUID, _ space: Space) {
+        suppressed.insert(id)
+        dragOrigin = nil
+        withAnimation(motion) { composition.cancel() }
+        derive(id, space)
+    }
+
+    /// Mitosis without fusion: the related words bud out of the bubble, which stays.
+    private func derive(_ id: UUID, _ space: Space) {
+        guard fusingPair == nil else { return }
+        let origin = bodies[id]?.position
+        var budded = false
+        apply(space, origin: origin) { budded = composition.derive(from: id) }
+        if !budded { sfx.play(.error) }
     }
 
     private func moveDragged(_ id: UUID, translation: CGSize, _ space: Space) {
