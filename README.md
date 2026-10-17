@@ -4,7 +4,17 @@ Laboratório SwiftUI para iPadOS 26+: palavras em Liquid Glass numa grid circula
 
 **Equipe que assume o projeto:** comece por [docs/ONBOARDING.md](docs/ONBOARDING.md) (origem do protótipo, intenção de design, estado e briefing para agentes de IA). Prospecção de longo prazo em [future-HANDOFF.md](future-HANDOFF.md).
 
-Abra `TesteMetaWord.xcodeproj` no Xcode 26+. Para dispositivo físico, configure sua equipe em Signing & Capabilities.
+Abra `TesteMetaWord.xcodeproj` no Xcode 26+.
+
+## Rodar num iPad
+
+Requisitos: Mac com Xcode 26+ e um iPad com iPadOS 26 ou superior (o app é só para iPad) com o Modo de Desenvolvedor ligado (Ajustes › Privacidade e Segurança). Uma conta Apple gratuita basta; nesse caso o app instalado expira em 7 dias.
+
+1. **Troque o bundle identifier.** O atual (`com.fabriciotosta.TesteMetaWord`) pertence à conta do autor, então a assinatura automática falha com "bundle identifier not available". Em `project.yml`, troque `com.fabriciotosta` por um prefixo seu nos três `PRODUCT_BUNDLE_IDENTIFIER` e rode `xcodegen generate` (ou `brew install xcodegen`). Mudar só no Xcode não vale: o próximo `xcodegen generate` desfaz.
+2. Abra `TesteMetaWord.xcodeproj`, selecione o target `TesteMetaWord` › Signing & Capabilities e escolha sua equipe.
+3. Conecte o iPad, escolha-o como destino e rode (⌘R). Na primeira vez, confie no desenvolvedor em Ajustes › Geral › VPN e Gerenciamento de Dispositivo.
+
+Nada foi validado em iPad físico até agora (só no simulador). Veja a seção “Estado na entrega” do [onboarding](docs/ONBOARDING.md).
 
 ## Versionamento
 
@@ -16,7 +26,7 @@ Veja os comandos e a estrutura em [Git no LAB](docs/GIT.md).
 
 Ao abrir, as palavras brotam do centro; **querer** (a palavra com mais combinações) é o centro óptico, cercado pela zona interna. Arraste **ir** sobre **querer** até armar (realce branco e pulso) e solte: as duas convergem, **Quero ir** nasce no ponto de encontro, **agora** e **depois** brotam dele, e **Quero ir** migra para o centro. Palavras que combinam com o foco ficam na zona interna; as que só combinam entre si, na média; as sem combinação, na externa. Durante o gesto a composição fica parada; ela se reorganiza depois. Sobre a BubbleKey, o dedo escolhe a fresta: arraste **eu** até a ponta esquerda de **Quero ir** e a frase se abre ali (“Eu quero ir”); na ponta direita, “Quero ir eu”. Enquanto a palavra está ao alcance, a BubbleKey cresce um pouco e as vizinhas se afastam suavemente (só visual), e o vai e vem sobre a frase não conta como sacudida. Num par por toque, as setas ← → movem a fresta.
 
-Com dois dedos, repouse um sobre **querer** e outro sobre **ir** e aproxime-os numa pinça até armar; tirar um dos dedos funde. Também é possível tocar querer → ir → um dos dois. Tocar no fundo cancela. `<` desfaz, dividindo o resultado; pressionar o resultado da última fusão por 0,45 s também desfaz: durante a pressão a bolha treme cada vez mais e um som tremular cresce, até a divisão, marcada por uma nota curta (o iPad não tem háptico para o dedo; o som faz esse papel). Sacudir uma bolha no arrasto deriva palavras relacionadas. Os sons são de fundo e sempre ligados: fusão, divisão, erro da pinça incompatível e um tom contínuo que acompanha a profundidade da sobreposição, em volume baixo (respeitam o modo silencioso). O botão de ajustes abre a calibração da distância de aproximação. A atmosfera é só Metal.
+Com dois dedos, repouse um sobre **querer** e outro sobre **ir** e aproxime-os numa pinça até armar; tirar um dos dedos funde. Também é possível tocar querer → ir → um dos dois. Tocar no fundo cancela. `<` desfaz, dividindo o resultado; pressionar o resultado da última fusão por 0,45 s também desfaz: durante a pressão a bolha treme cada vez mais e um som tremular cresce, até a divisão, marcada por uma nota curta (o iPad não tem háptico para o dedo; o som faz esse papel). Sacudir uma bolha no arrasto deriva palavras relacionadas. Os sons são de fundo e sempre ligados: fusão, divisão, erro da pinça incompatível e uma escala, sorteada a cada arrasto, tocada ao passar pelas frestas da BubbleKey (com um snap ao entrar), em volume baixo (respeitam o modo silencioso). A sobreposição estática fica em silêncio. O botão de ajustes abre a calibração da distância de aproximação. A atmosfera é só Metal.
 
 Estado e parâmetros vivem apenas na sessão. Sem SwiftData, voz ou serviços remotos.
 

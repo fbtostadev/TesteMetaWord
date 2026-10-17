@@ -76,7 +76,7 @@ Quando alguém abrir o projeto pela primeira vez, pedir contexto (“o que é is
 | Motor por modelo local | Qwen3-0.6B + LoRA treinado no Mac (rodadas 1 e 2); **não integrado ao app** | `ml/README.md`, `ml/results/` |
 | Comparativo com Jev (TypeSafe) | Feito: bom como juiz de validade offline, fraco em zonas; remoto, então fora do app | `future-HANDOFF.md` (seção 1), `ml/evaluate_jev.py` |
 | Não validado | iPad físico, VoiceOver, teclado/trackpad, desempenho do vidro a cada frame, alvos em movimento em uso de C.A., movimento reduzido no dedo | `README.md`, `HANDOFF.md` |
-| Fora da v1 | Pinça, zona de sumiço, persistência, voz | `AGENTS.md` |
+| Fora da v1 | Zona de sumiço, persistência, voz | `AGENTS.md` |
 
 Capturas do simulador:
 - `docs/media/atmosphere-initial.jpg`: foco no centro e luz só na zona ocupada;
@@ -109,7 +109,7 @@ Os pesos treinados (`ml/adapters/`) não são versionados. Para reproduzir, trei
   Com usuários reais, as regras 2 e 3 deixam de valer. A equipe decide o que adota e registra no `AGENTS.md`.
 - **Motor de composição:** seguir ou não o roteiro do `future-HANDOFF.md`, a começar pela Fase 0.
 - **Pesquisa com usuários de C.A.:** ética, consentimento, parceiros (fonoaudiólogos).
-- **Decisões em aberto do `AGENTS.md`:** pinça, zona de sumiço, persistência, voz.
+- **Decisões em aberto do `AGENTS.md`:** alternativa de gesto para quem não arrasta ou não usa dois dedos, zona de sumiço, persistência, voz.
 
 ## 6. Mapa dos documentos
 
