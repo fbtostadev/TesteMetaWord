@@ -40,16 +40,20 @@ Estado e parâmetros vivem apenas na sessão. Sem SwiftData, voz ou serviços re
 ## Build e testes
 
 ```sh
-xcodegen generate
+xcodegen generate          # só ao criar ou remover arquivos
 ./scripts/build.sh
-xcodebuild test -project TesteMetaWord.xcodeproj -scheme TesteMetaWord -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M5)' -derivedDataPath build/DerivedData -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO
+./scripts/test.sh          # testes de lógica, o ciclo do dia a dia (~15 s com build)
+./scripts/test.sh ui       # o percurso único de interface (~25 s)
+./scripts/test.sh all      # os dois, antes de integrar em main
 ```
+
+A saída é silenciosa (`-quiet`): só falhas e o resumo; código de saída 0 é aprovado. `DESTINATION='platform=iOS Simulator,id=<UDID>'` escolhe outro simulador.
 
 Se o ambiente impedir o sandbox de macros, use `./scripts/build.sh 'OTHER_SWIFT_FLAGS=$(inherited) -disable-sandbox'`.
 
 Build para dispositivo sem assinatura: `build/DerivedData/Build/Products/Debug-iphoneos/TesteMetaWord.app`.
 
-Validação mínima: build, testes de lógica e quatro testes de interface básicos. Não há testes nem scripts de comparação visual; crashes e erros críticos são relatados pela pessoa usuária (ver `AGENTS.md`, “Validação”).
+Validação mínima: build, testes de lógica e um percurso de interface básico. Não há testes nem scripts de comparação visual; crashes e erros críticos são relatados pela pessoa usuária (ver `AGENTS.md`, “Validação”).
 
 > **Histórico:** o renderizador por gradientes, o interruptor de sons e o script `scripts/capture-atmosphere.py` foram removidos em `exp/gramatica-procedural`. As seções abaixo registram experimentos anteriores e citam esses recursos como estavam.
 

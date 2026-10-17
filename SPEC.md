@@ -157,8 +157,8 @@ Popover com a distância de aproximação 8–60 pt (default 24). Enquanto está
 
 ## Validação
 
-Validação mínima: build, testes de lógica e os poucos testes de interface básicos (arrastar e soltar, Undo, long press, soltura rasa). Não criar testes nem scripts que comparem renderizadores, flags ou capturas no simulador; crashes e erros críticos são relatados pela pessoa usuária.
+Validação mínima: build, testes de lógica (`./scripts/test.sh`) e, antes de integrar, o percurso de interface básico (`./scripts/test.sh ui`: soltura rasa, arrastar e soltar, fusão da zona externa, Undo, long press). Não criar testes nem scripts que comparem renderizadores, flags ou capturas no simulador; crashes e erros críticos são relatados pela pessoa usuária.
 
 - **Swift Testing:** vocabulário e gramática (fusões fortes contra a tabela anterior, as três forças), confirmação, armar/desarmar, cancelamento, Undo, foco e zonas, física (foco no centro, anéis, camadas que se reaproximam, ausência de pontes em repouso, nascimento), órbita, pinça (armar, desarmar, par incompatível), sacudir (reconhecimento, palavras derivadas, Undo) e a forma pura dos sons e do tremor.
-- **Interface (XCTest):** arrastar e soltar com Undo, fusão de uma palavra da zona externa com o foco, long press que divide o resultado e soltura rasa sem fusão.
+- **Interface (XCTest):** um percurso num só lançamento do app: soltura rasa sem fusão, arrastar e soltar, fusão de uma palavra da zona externa com o foco, Undo e long press que divide o resultado. Espera a física assentar em vez de pausas fixas.
 - **À mão:** pinça entre duas bolhas e sacudida real (o XCTest não posiciona dois dedos em bolhas diferentes nem faz arrasto em zigue-zague); sensação, sons e desempenho no iPad físico.

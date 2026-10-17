@@ -75,4 +75,4 @@ Não trate esses pontos como requisitos resolvidos nem acrescente serviços remo
 
 Consulte `README.md` para os comandos de build, assinatura e limitações do ambiente. O script de compilação é `./scripts/build.sh`. Diferencie compilação bem-sucedida de interação validada em simulador ou iPad físico.
 
-Validação mínima: build, testes de lógica e os poucos testes de interface básicos (arrastar e soltar, Undo, long press, soltura rasa). Não criar testes nem scripts que comparem renderizadores, flags ou capturas no simulador; crashes e erros críticos são relatados pela pessoa usuária. Ao alterar arrasto/fusão, basta manter os testes básicos de arrastar e soltar passando.
+Validação mínima: build, testes de lógica (`./scripts/test.sh`) e, antes de integrar, o percurso de interface básico (`./scripts/test.sh ui`: soltura rasa, arrastar e soltar, fusão da zona externa, Undo, long press). Não criar testes nem scripts que comparem renderizadores, flags ou capturas no simulador; crashes e erros críticos são relatados pela pessoa usuária. Ao alterar arrasto/fusão, basta manter os testes básicos de arrastar e soltar passando.

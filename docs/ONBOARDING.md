@@ -49,7 +49,7 @@ Quando alguém abrir o projeto pela primeira vez, pedir contexto (“o que é is
 - Não altere uma **intenção de design** (tabela 1.1) por conta própria. Se uma tarefa a contradiz, aponte o conflito e peça decisão.
 - **Segredos:** nunca leia, imprima nem commite `.env`. Cada pessoa cria o seu a partir de `.env.example`. A chave do Jev usada nos comparativos é do autor e não acompanha o repositório; quem precisar rodar `ml/evaluate_jev.py` obtém uma chave própria.
 - Ao relatar resultados, separe sempre: **compilado**, **testado no simulador**, **validado em iPad físico**, **avaliado com usuário de C.A.** Não promova um nível ao outro.
-- Validação mínima: build, testes de lógica e os poucos testes de interface básicos (arrastar e soltar, Undo, long press, soltura rasa). Não criar testes nem scripts que comparem renderizadores, flags ou capturas no simulador; crashes e erros críticos são relatados pela pessoa usuária.
+- Validação mínima: build, testes de lógica (`./scripts/test.sh`) e, antes de integrar, o percurso de interface básico (`./scripts/test.sh ui`: soltura rasa, arrastar e soltar, fusão da zona externa, Undo, long press). Não criar testes nem scripts que comparem renderizadores, flags ou capturas no simulador; crashes e erros críticos são relatados pela pessoa usuária.
 - Não acrescente serviço remoto de IA, voz ou persistência sem que a equipe defina o experimento.
 - Terminou uma tarefa que muda o estado do projeto? Atualize `HANDOFF.md`.
 
