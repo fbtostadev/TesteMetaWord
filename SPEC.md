@@ -32,7 +32,11 @@ Perto do ponto médio do par, a aproximação deforma as faixas em até 8 pt, de
 
 Cada palavra é um corpo em uma física 2D:
 
-- **Repulsão:** superfícies de cápsulas mais próximas que 30 pt se repelem como molas. Como 30 pt é maior que o spacing de 24 pt, não há ponte de vidro em repouso. Quando uma zona lota, a repulsão empurra o excedente para fora.
+- **Repulsão:** superfícies de cápsulas mais próximas que 30 pt se repelem como molas. Como 30 pt é maior que o spacing de 24 pt, não há ponte de vidro em repouso. A repulsão é só uma rede de segurança; quem garante o espaço em repouso são os alvos:
+- **Anel empacotado pelo espaço real:** num anel, as palavras mantêm a ordem angular e cada uma fica logo depois da anterior, com pelo menos 30 pt entre superfícies; a folga restante se divide entre elas e o anel gira para mover as palavras o mínimo. A folga é medida na posição final, porque o mesmo ângulo vale mais espaço nas pontas de uma frase larga do que nas laterais.
+- **Transbordo:** se o anel não comporta todas, as mais largas passam para o anel seguinte (a escolha é estável entre quadros).
+- **Anéis externos desviam dos internos:** ao lado de uma frase larga as palavras ficam lado a lado, mais largas que o espaçamento entre anéis; a palavra de fora recua ao longo do seu raio até liberar 30 pt. Por isso ela pode ficar um pouco além do seu anel, nunca além do seguinte.
+- A posição em cada direção é calculada de forma exata (cápsulas horizontais), mantendo o custo por quadro baixo.
 - **Atração por zona:** uma mola leva cada palavra à distância-alvo da sua zona, na direção em que ela já está; o foco é puxado para o centro. Palavras de uma mesma zona se espalham em volta do foco pela repulsão.
 - **Amortecimento:** o grosso do movimento acontece em cerca de 0,4 s, com leve elasticidade; o assentamento completo leva cerca de 1 s.
 - **Física só fora do ato:** enquanto há arrasto, seleção, par preparado ou fusão em andamento, a composição fica congelada (só a flutuação idle continua). Com a calibração aberta, o relógio inteiro pausa, incluindo a flutuação. Repulsão, atração e reorganização atuam depois — principalmente após a fusão.

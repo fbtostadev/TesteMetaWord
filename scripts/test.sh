@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Runs the tests with quiet output (only failures and the summary).
+# Runs the tests and prints only failures and the summary (`-quiet` would hide Swift Testing failures).
 #   ./scripts/test.sh        logic tests only, the everyday loop (seconds)
 #   ./scripts/test.sh ui     the single interface flow (drag, fusion, Undo, long press)
 #   ./scripts/test.sh all    both, before integrating into main
@@ -13,11 +13,12 @@ case "${1:-logic}" in
   all) only=() ;;
   *) print -u2 "uso: $0 [logic|ui|all]"; exit 64 ;;
 esac
-xcodebuild test -quiet \
+xcodebuild test \
   -project TesteMetaWord.xcodeproj \
   -scheme TesteMetaWord \
   -destination "${DESTINATION:-platform=iOS Simulator,name=iPad Pro 13-inch (M5)}" \
   -derivedDataPath build/DerivedData \
   -parallel-testing-enabled NO \
   CODE_SIGNING_ALLOWED=NO \
-  "${only[@]}"
+  "${only[@]}" 2>&1 | grep -E '✘|error:|Test Case .* failed|Test run with|Executed [0-9]+ test|\*\* TEST' | grep -v ' 0 tests'
+exit ${pipestatus[1]}

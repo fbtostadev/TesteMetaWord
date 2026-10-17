@@ -26,7 +26,9 @@ struct PhysicsTests {
         }
         #expect(hypot(bodies[focus]!.position.x - center.x, bodies[focus]!.position.y - center.y) < 4, "the optical center moves to the canvas center")
         for (id, zone) in zones {
-            #expect(abs(gap(bodies, sizes, id, focus) - Physics.zoneGap(zone)) < 8, "zone \(zone) sits on its ring")
+            // On its ring, or a little beyond it where a word of an inner ring stands in the way.
+            let g = gap(bodies, sizes, id, focus)
+            #expect(g > Physics.zoneGap(zone) - 8 && g < Physics.zoneGap(zone) + Physics.zoneSpacing, "zone \(zone) sits on its ring")
         }
         let ids = Array(sizes.keys)
         for a in ids {
@@ -57,8 +59,8 @@ struct PhysicsTests {
         })
         let targets = Physics.targets(bodies, sizes: sizes, focus: focus, zones: Dictionary(uniqueKeysWithValues: members.map { ($0, 1) }), center: center)
         let angles = members.map { atan2(targets[$0]!.y - center.y, targets[$0]!.x - center.x) }.sorted()
-        #expect(abs(angles[1] - angles[0] - 2 * .pi / 3) < 0.01)
-        #expect(abs(angles[2] - angles[1] - 2 * .pi / 3) < 0.01)
+        let turns = [angles[1] - angles[0], angles[2] - angles[1], 2 * .pi + angles[0] - angles[2]]
+        #expect(turns.allSatisfy { abs($0 - 2 * .pi / 3) < 0.35 }, "the spare room is shared: \(turns)")
         #expect(targets[focus] == center)
     }
 
@@ -81,5 +83,46 @@ struct PhysicsTests {
         #expect(abs(now.dx - nextLap.dx) < 0.001 && abs(now.dy - nextLap.dy) < 0.001)
         #expect(Physics.orbit(phase: 1 + Physics.familyLag, time: 10) != now)
         #expect(Physics.orbit(phase: 1, time: 10, amplitude: 0) == .zero)
+    }
+
+    /// Settles a composition and checks that no two words rest closer than the glass spacing.
+    func settlesWithoutBridges(focusSize: CGSize, zones layout: [(width: CGFloat, zone: Int)], steps: Int = 900) -> (bodies: [UUID: Physics.Body], sizes: [UUID: CGSize], focus: UUID) {
+        let focus = UUID()
+        var sizes = [focus: focusSize]
+        var zones: [UUID: Int] = [:]
+        for (width, zone) in layout {
+            let id = UUID()
+            sizes[id] = CGSize(width: width, height: 56)
+            zones[id] = zone
+        }
+        // Everything buds from one point, as a shake or a fusion does.
+        var bodies = Physics.spawn([focus] + Array(zones.keys), core: focus, at: CGPoint(x: 460, y: 470), seed: focus)
+        let wide = CGRect(x: 16, y: 16, width: 1368, height: 968)
+        for _ in 0..<steps {
+            Physics.step(&bodies, sizes: sizes, focus: focus, zones: zones, center: CGPoint(x: 700, y: 500), bounds: wide, dt: 1.0 / 60)
+        }
+        let ids = Array(sizes.keys)
+        for (i, a) in ids.enumerated() {
+            for b in ids[(i + 1)...] {
+                #expect(gap(bodies, sizes, a, b) > Physics.glassSpacing, "no glass bridge at rest")
+            }
+        }
+        return (bodies, sizes, focus)
+    }
+
+    /// Eight words in the inner zone around a short focus, as after shaking querer.
+    @Test func aCrowdedZoneOverflowsInsteadOfPinningWords() {
+        let widths: [CGFloat] = [100, 124, 132, 132, 206, 90, 140, 134]
+        let result = settlesWithoutBridges(focusSize: CGSize(width: 140, height: 58), zones: widths.map { ($0, 1) })
+        let gaps = result.sizes.keys.filter { $0 != result.focus }.map { gap(result.bodies, result.sizes, $0, result.focus) }
+        #expect(gaps.contains { abs($0 - Physics.zoneGap(1)) < 8 }, "the ring is used")
+        #expect(gaps.contains { $0 > Physics.zoneGap(1) + 40 }, "the words that do not fit move to the next ring")
+    }
+
+    /// A long phrase as the focus with three zones around it, as in a long composition.
+    @Test func aWideFocusKeepsItsZonesApart() {
+        let layout: [(CGFloat, Int)] = [(140, 1), (120, 1), (130, 1), (126, 1), (90, 1), (118, 1), (130, 1), (124, 1),
+                                        (104, 2), (100, 2), (126, 3), (132, 3)]
+        _ = settlesWithoutBridges(focusSize: CGSize(width: 560, height: 62), zones: layout)
     }
 }
