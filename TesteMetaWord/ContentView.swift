@@ -12,6 +12,8 @@ struct ContentView: View {
     @State private var layoutSizes: [UUID: CGSize] = [:]
     @State private var lastTick: Date?
     @State private var dragOrigin: CGPoint?
+    /// The dragging finger, which picks the BubbleKey's gap.
+    @State private var dragFinger: CGPoint?
     @State private var fusionTask: Task<Void, Never>?
     @State private var fusingPair: MergePair?
     @State private var passiveTask: Task<Void, Never>?
@@ -25,6 +27,7 @@ struct ContentView: View {
     @State private var ignoreTapUntil = Date.distantPast
     @Namespace private var glass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .title3) private var fontSize = 20.0
     @State private var splitSound = SplitSound()
@@ -92,6 +95,17 @@ struct ContentView: View {
                     .keyboardShortcut(.cancelAction)
                     .hidden()
                     .accessibilityHidden(true)
+                // The arrows move the gap of a prepared pair that holds the BubbleKey.
+                if composition.candidate.flatMap(composition.entering) != nil, fusingPair == nil {
+                    ForEach([(-1, KeyEquivalent.leftArrow), (1, .rightArrow)], id: \.0) { step, key in
+                        Button(step < 0 ? "Inserir antes" : "Inserir depois") {
+                            withAnimation(motion) { composition.moveInsertion(by: step) }
+                        }
+                        .keyboardShortcut(key, modifiers: [])
+                        .hidden()
+                        .accessibilityHidden(true)
+                    }
+                }
             }
             .onChange(of: geometry.size, initial: true) {
                 cancel(space)
@@ -158,7 +172,11 @@ struct ContentView: View {
                             namespace: glass,
                             activate: { activate(chip.id, space) },
                             undo: { undo(chip.id, space) },
-                            derive: { derive(chip.id, space) }
+                            derive: { derive(chip.id, space) },
+                            phrase: phrase(chip, space).flatMap { layout in composition.focusPhrase.map { ($0, layout) } },
+                            opening: opening(chip, space),
+                            insertion: insertionValue(chip),
+                            adjust: voiceOver && insertionValue(chip) != nil ? { step in composition.moveInsertion(by: step) } : nil
                         )
                         .overlay {
                             Capsule().strokeBorder(.white.opacity(composition.dragging == chip.id || composition.pinching?.contains(chip.id) == true ? composition.resistance * 0.85 : 0), lineWidth: 2)
@@ -220,8 +238,9 @@ struct ContentView: View {
     /// proximity still follows the logical distance used by the gesture, before membrane recoil.
     private func atmosphereInput(_ space: Space, time: TimeInterval) -> AtmosphereInput {
         let focus = composition.focus
+        let open = composition.chips.first { $0.id == focus }.flatMap { opening($0, space) }?.width ?? 0
         let focusRect = focus.flatMap { id in
-            bodies[id].flatMap { body in space.sizes[id].map { Physics.rect(body.position, $0) } }
+            bodies[id].flatMap { body in space.sizes[id].map { Physics.rect(body.position, CGSize(width: $0.width + open, height: $0.height)) } }
         } ?? .zero
         let engaged = focus.map { id in
             composition.dragging == id || composition.selected == id
@@ -327,6 +346,36 @@ struct ContentView: View {
         let chipWidth = min(maxWidth, max(88 * scale, ceil(natural)))
         let bounds = (text as NSString).boundingRect(with: CGSize(width: chipWidth - padding, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font], context: nil)
         return CGSize(width: chipWidth, height: max(56 * scale, ceil(bounds.height) + 28 * scale))
+    }
+
+    private func font(_ chip: WordChip) -> UIFont {
+        UIFont.systemFont(ofSize: fontSize * chip.scale, weight: .semibold)
+    }
+
+    /// The BubbleKey's words as the text layout frames them in its capsule, once the engine has
+    /// read its phrase; nil for other words and for a phrase that wraps.
+    private func phrase(_ chip: WordChip, _ space: Space) -> PhraseLayout? {
+        guard chip.id == composition.focus, let words = composition.focusPhrase, let size = space.sizes[chip.id] else { return nil }
+        return PhraseLayout(words, font: font(chip), size: size, padding: 24 * chip.scale)
+    }
+
+    /// The gap the BubbleKey opens for the word about to enter it: as wide as that word and a
+    /// space, opening with the overlap until the pair arms.
+    private func opening(_ chip: WordChip, _ space: Space) -> Opening? {
+        guard chip.id == composition.focus, let gap = composition.insertion, let pair = composition.activePair,
+              let word = composition.entering(pair), phrase(chip, space) != nil else { return nil }
+        let width = ((word.text + " ") as NSString).size(withAttributes: [.font: font(chip)]).width
+        let armed = composition.dropCandidate != nil || composition.candidate != nil
+        return Opening(gap: gap, width: ceil(width) * (armed ? 1 : min(1, composition.depth / 0.45)))
+    }
+
+    /// Where a prepared word would enter the BubbleKey, for VoiceOver.
+    private func insertionValue(_ chip: WordChip) -> String? {
+        guard chip.id == composition.focus, let gap = composition.insertion, let words = composition.focusPhrase,
+              let pair = composition.candidate, composition.entering(pair) != nil else { return nil }
+        if gap == 0 { return "no início" }
+        if gap >= words.count { return "no fim" }
+        return "depois de " + words[gap - 1].trimmingCharacters(in: [","])
     }
 
     /// Grows the canvas when large text needs more room than the viewport.
@@ -491,24 +540,53 @@ struct ContentView: View {
     }
 
     /// Reverse mitosis: both origins converge to their midpoint, then the result is born there.
+    /// A word entering the BubbleKey slides into its open gap instead; the BubbleKey holds its
+    /// place and the result is born there.
     private func confirmCandidate(_ pair: MergePair, _ space: Space) {
+        let into = insertionPoint(pair, space)
         guard !reduceMotion, let a = bodies[pair.source]?.position, let b = bodies[pair.target]?.position else {
-            apply(space, sound: .fusion) { composition.tap(pair.source) }
+            apply(space, sound: .fusion, origin: into?.focus) { composition.tap(pair.source) }
             return
         }
-        let center = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
         withAnimation(.easeIn(duration: 0.2)) {
             fusingPair = pair
-            bodies[pair.source] = Physics.Body(position: center)
-            bodies[pair.target] = Physics.Body(position: center)
+            if let into {
+                bodies[into.word] = Physics.Body(position: into.gap)
+                bodies[into.focusID] = Physics.Body(position: into.focus)
+            } else {
+                let center = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+                bodies[pair.source] = Physics.Body(position: center)
+                bodies[pair.target] = Physics.Body(position: center)
+            }
         }
         fusionTask = Task { @MainActor in
             do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
             guard composition.candidate == pair else { cancel(space); return }
-            apply(space, sound: .fusion) { composition.tap(pair.source) }
+            apply(space, sound: .fusion, origin: into?.focus) { composition.tap(pair.source) }
             fusingPair = nil
             fusionTask = nil
         }
+    }
+
+    /// For a pair entering the BubbleKey: the entering word, the BubbleKey, and the open gap's
+    /// point on the canvas.
+    private func insertionPoint(_ pair: MergePair, _ space: Space) -> (word: UUID, focusID: UUID, focus: CGPoint, gap: CGPoint)? {
+        guard let word = composition.entering(pair), let gap = composition.insertion,
+              let focusID = composition.focus, let chip = composition.chips.first(where: { $0.id == focusID }),
+              let focus = bodies[focusID]?.position, let layout = phrase(chip, space) else { return nil }
+        return (word.id, focusID, focus, CGPoint(x: focus.x - layout.size.width / 2 + layout.gapX(gap), y: focus.y))
+    }
+
+    /// While the dragged word is over the BubbleKey, the gap under the finger, measured on the
+    /// closed phrase so the opening does not move the gaps it is chosen from.
+    private func updateInsertion(_ space: Space, time: TimeInterval) {
+        guard let finger = dragFinger, let focus = composition.focus, composition.approachTarget == focus,
+              let chip = composition.chips.first(where: { $0.id == focus }), let layout = phrase(chip, space) else {
+            composition.updateInsertion(nil)
+            return
+        }
+        let left = rendered(chip, space, time: time).x - layout.size.width / 2
+        composition.updateInsertion(layout.gap(at: finger.x - left, current: composition.insertion))
     }
 
     private func drag(_ id: UUID, _ space: Space) -> some Gesture {
@@ -523,6 +601,7 @@ struct ContentView: View {
                     composition.beginDrag(id)
                 }
                 moveDragged(id, translation: value.translation, space)
+                dragFinger = value.location
                 if shake.add(value.location, time: now) { return shakeOff(id, space) }
                 updateProximity(space, time: now)
             }
@@ -531,8 +610,10 @@ struct ContentView: View {
                 ignoreTapUntil = Date().addingTimeInterval(0.3)
                 // Read the release location itself; do not rely on the last frame tick.
                 moveDragged(id, translation: value.translation, space)
+                dragFinger = value.location
                 updateProximity(space, time: Date().timeIntervalSinceReferenceDate)
                 dragOrigin = nil
+                dragFinger = nil
                 if let pair = composition.endDrag() {
                     confirmCandidate(pair, space)
                 } else {
@@ -578,6 +659,7 @@ struct ContentView: View {
         let closest = targets.min { $0.gap < $1.gap }
         let target = closest.flatMap { $0.gap <= composition.calibration.distance ? $0.id : nil }
         composition.updateProximity(target: target, penetration: closest.map { -$0.gap / $0.height } ?? 0, time: ProcessInfo.processInfo.systemUptime)
+        updateInsertion(space, time: time)
     }
 
     /// The handled surface recoils from its partner while the membrane resists. In a pinch both
@@ -676,7 +758,7 @@ struct ContentView: View {
         fusionTask?.cancel()
         fusionTask = nil
         fusingPair = nil
-        withAnimation(motion) { composition.cancel(); dragOrigin = nil }
+        withAnimation(motion) { composition.cancel(); dragOrigin = nil; dragFinger = nil }
         settleIfReduced(space)
     }
 

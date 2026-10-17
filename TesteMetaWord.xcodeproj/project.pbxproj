@@ -11,6 +11,8 @@
 		133BD7D4C4C0FD22AB466A46 /* DropMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5158270BCE4B63D5C57BB8B /* DropMergeTests.swift */; };
 		185C556448EF9F2440466612 /* SfxTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 737F1D243C34A3FFC7DB735F /* SfxTests.swift */; };
 		1C9ACC56493EDCC53C2BBC08 /* TesteMetaWordApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C7C945DA538B953D63B07FB /* TesteMetaWordApp.swift */; };
+		1E98EBF3E7EFE6AEC8B1C16D /* InsertionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519F038F548839EB0FBAFDCD /* InsertionTests.swift */; };
+		414DF8245449DA45EF38BD2E /* PhraseLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24523119C941D7160CB84C2F /* PhraseLayoutTests.swift */; };
 		441D23E0D0F273F50D44C050 /* PhysicsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2C681D14CABAD742AFFE2F /* PhysicsTests.swift */; };
 		470A173125BB5D336213E40D /* SplitTension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1857532C528EC5D7C6E146 /* SplitTension.swift */; };
 		50D20214182AA11AB8938A32 /* AtmosphereTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE40EB3EC5FE28E6F2A0627 /* AtmosphereTests.swift */; };
@@ -24,6 +26,7 @@
 		98EB3CEEA182453DCB8BF990 /* vocabulary.json in Resources */ = {isa = PBXBuildFile; fileRef = E91266EC5CAF96A9426C2EF7 /* vocabulary.json */; };
 		99DFA67258E39A15A4DF99BE /* AtmosphereView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6C68151EA1F5914B5D4D27E /* AtmosphereView.swift */; };
 		A62B4637511A7ABE12832CE2 /* Physics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101BD15CA0217C8780B855DE /* Physics.swift */; };
+		CBCEC194E46FB0363B77C9F4 /* PhraseLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = E335F5837B5D9C817E975F32 /* PhraseLayout.swift */; };
 		DCAA19E2C457C58D2EC2B13F /* TouchTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5743E3EC26C935C9635869CD /* TouchTracker.swift */; };
 		E2441FC276AE1D4BB2750D7E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8F844CFEA394E51847A4FB5 /* ContentView.swift */; };
 		E60E00B22888172BA463529C /* PinchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAEA6DADA86C810B4F62DDDF /* PinchTests.swift */; };
@@ -56,8 +59,10 @@
 		0C7C945DA538B953D63B07FB /* TesteMetaWordApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TesteMetaWordApp.swift; sourceTree = "<group>"; };
 		101BD15CA0217C8780B855DE /* Physics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Physics.swift; sourceTree = "<group>"; };
 		1AE40EB3EC5FE28E6F2A0627 /* AtmosphereTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtmosphereTests.swift; sourceTree = "<group>"; };
+		24523119C941D7160CB84C2F /* PhraseLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseLayoutTests.swift; sourceTree = "<group>"; };
 		407C486BBE6896E013E72904 /* CompositionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionTests.swift; sourceTree = "<group>"; };
 		4A1857532C528EC5D7C6E146 /* SplitTension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitTension.swift; sourceTree = "<group>"; };
+		519F038F548839EB0FBAFDCD /* InsertionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsertionTests.swift; sourceTree = "<group>"; };
 		5743E3EC26C935C9635869CD /* TouchTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchTracker.swift; sourceTree = "<group>"; };
 		5A13B7BED96173B00C8567EE /* CompositionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionEngine.swift; sourceTree = "<group>"; };
 		5B2C681D14CABAD742AFFE2F /* PhysicsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicsTests.swift; sourceTree = "<group>"; };
@@ -74,6 +79,7 @@
 		A6C68151EA1F5914B5D4D27E /* AtmosphereView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtmosphereView.swift; sourceTree = "<group>"; };
 		CAEA6DADA86C810B4F62DDDF /* PinchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinchTests.swift; sourceTree = "<group>"; };
 		D8F844CFEA394E51847A4FB5 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		E335F5837B5D9C817E975F32 /* PhraseLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseLayout.swift; sourceTree = "<group>"; };
 		E91266EC5CAF96A9426C2EF7 /* vocabulary.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = vocabulary.json; sourceTree = "<group>"; };
 		EE303FC9CD2C075997CF8898 /* TesteMetaWordTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TesteMetaWordTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4157581E50CD14E73DCAC9B /* ChipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChipView.swift; sourceTree = "<group>"; };
@@ -109,6 +115,7 @@
 				5A13B7BED96173B00C8567EE /* CompositionEngine.swift */,
 				D8F844CFEA394E51847A4FB5 /* ContentView.swift */,
 				74315932C58B74D799F7DB89 /* Grammar.swift */,
+				E335F5837B5D9C817E975F32 /* PhraseLayout.swift */,
 				101BD15CA0217C8780B855DE /* Physics.swift */,
 				09F2C89ABE9A2EE3B728939A /* Sfx.swift */,
 				745DF1050544CBB711020EE8 /* Shake.swift */,
@@ -126,6 +133,8 @@
 				1AE40EB3EC5FE28E6F2A0627 /* AtmosphereTests.swift */,
 				407C486BBE6896E013E72904 /* CompositionTests.swift */,
 				8162F454DE48A3BA06E0F435 /* GrammarTests.swift */,
+				519F038F548839EB0FBAFDCD /* InsertionTests.swift */,
+				24523119C941D7160CB84C2F /* PhraseLayoutTests.swift */,
 				5B2C681D14CABAD742AFFE2F /* PhysicsTests.swift */,
 				CAEA6DADA86C810B4F62DDDF /* PinchTests.swift */,
 				737F1D243C34A3FFC7DB735F /* SfxTests.swift */,
@@ -272,6 +281,7 @@
 				92F44AAA890A3ABB2AAFAD62 /* CompositionEngine.swift in Sources */,
 				E2441FC276AE1D4BB2750D7E /* ContentView.swift in Sources */,
 				76E149C658032317FAD8DAF3 /* Grammar.swift in Sources */,
+				CBCEC194E46FB0363B77C9F4 /* PhraseLayout.swift in Sources */,
 				A62B4637511A7ABE12832CE2 /* Physics.swift in Sources */,
 				912662A3CB404B6C622C86EF /* Sfx.swift in Sources */,
 				7D066382A09B71F4B6AA976A /* Shake.swift in Sources */,
@@ -289,6 +299,8 @@
 				50D20214182AA11AB8938A32 /* AtmosphereTests.swift in Sources */,
 				E60E749FEED77BBC50213C68 /* CompositionTests.swift in Sources */,
 				7D173543A56ABA55EB2AD6E9 /* GrammarTests.swift in Sources */,
+				1E98EBF3E7EFE6AEC8B1C16D /* InsertionTests.swift in Sources */,
+				414DF8245449DA45EF38BD2E /* PhraseLayoutTests.swift in Sources */,
 				441D23E0D0F273F50D44C050 /* PhysicsTests.swift in Sources */,
 				E60E00B22888172BA463529C /* PinchTests.swift in Sources */,
 				185C556448EF9F2440466612 /* SfxTests.swift in Sources */,

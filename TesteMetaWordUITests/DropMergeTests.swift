@@ -1,7 +1,8 @@
 import XCTest
 
 /// Minimal interaction check in one launch: the whole drag-and-drop gesture (shallow and deep),
-/// a fusion from the outer zone, Undo and the long-press split.
+/// the gap a drop on the BubbleKey chooses (left and right of the same bubble), a fusion from the
+/// outer zone, Undo and the long-press split.
 @MainActor final class DropMergeTests: XCTestCase {
     override func setUp() async throws {
         continueAfterFailure = false
@@ -27,10 +28,22 @@ import XCTest
         XCTAssertTrue(focus.waitForExistence(timeout: 5), "Soltar sobre ir deve gerar Quero ir sem outro toque")
         XCTAssertTrue(app.buttons["chip-agora"].exists && app.buttons["chip-depois"].exists)
 
+        // Over the BubbleKey, the finger chooses the gap: the order the person chose is final.
+        let eu = app.buttons["chip-eu"]
+        for (side, result) in [(CGFloat(-1), "Eu quero ir"), (1, "Quero ir eu")] {
+            waitUntilSettled(eu)
+            waitUntilSettled(focus)
+            drop(eu, onto: focus, side: side, in: app)
+            XCTAssertTrue(app.buttons["chip-\(result)"].waitForExistence(timeout: 5), "Soltar \(side < 0 ? "à esquerda" : "à direita") deve gerar \(result)")
+            undo.tap()
+            XCTAssertTrue(focus.waitForExistence(timeout: 3))
+        }
+
         // comer now sits in the outer zone and still fuses with the focus.
         let comer = app.buttons["chip-comer"]
         waitUntilSettled(comer)
-        drag(comer, to: focus, in: app)
+        waitUntilSettled(focus)
+        drop(comer, onto: focus, side: 1, in: app)
         let weak = app.buttons["chip-Quero ir e comer"]
         XCTAssertTrue(weak.waitForExistence(timeout: 5), "Uma palavra da zona externa também se funde")
 
@@ -65,6 +78,15 @@ import XCTest
         let a = source.frame, b = target.frame
         point(app, CGPoint(x: a.midX, y: a.midY))
             .press(forDuration: 0.05, thenDragTo: point(app, CGPoint(x: b.midX, y: b.midY)), withVelocity: .slow, thenHoldForDuration: 0)
+    }
+
+    /// Drags `source` until the finger rests 12 pt inside the left (`side` -1) or right (1) end
+    /// of `target`, which picks the gap at that end of its phrase.
+    private func drop(_ source: XCUIElement, onto target: XCUIElement, side: CGFloat, in app: XCUIApplication) {
+        let a = source.frame, b = target.frame
+        let end = CGPoint(x: side < 0 ? b.minX + 12 : b.maxX - 12, y: b.midY)
+        point(app, CGPoint(x: a.midX, y: a.midY))
+            .press(forDuration: 0.05, thenDragTo: point(app, end), withVelocity: .slow, thenHoldForDuration: 0)
     }
 
     /// Drags `source` toward `target` from its own side and stops 6 pt from the surface.
