@@ -20,6 +20,7 @@ Na worktree `TesteMetaWord-wt-metal-atmosphere`, branch `exp/metal-atmosphere`, 
   - as sugestões brotam dele com impulsos radiais distintos;
   - o resultado então migra para o centro.
 - **Undo:** divide o resultado, que mantém a identidade de vidro, enquanto a outra origem brota. As sugestões somem.
+- **Tensão do long press** (`SplitTension.swift`, integrado de `exp/long-press-split`): durante os 0,6 s da pressão no resultado da última fusão, a bolha treme (até 2,5 pt, progresso²) e incha até 1,04×, e um som tremular sintetizado cresce. Na divisão, um estalo de ~90 ms. Desistir esmaece o som em ~40 ms, sem estalo. Palavra indivisível: nada acontece. Áudio ambiente (respeita o modo silencioso); o iPad não tem háptico para o dedo, então o som faz esse papel.
 - **Estado armado:** realce branco e pulso a 45% de sobreposição.
 - **Flutuação idle:** órbita de 4 pt e 6 s, com fase herdada da origem. A palavra que está sendo manipulada para de flutuar.
 
@@ -38,6 +39,7 @@ Na worktree `TesteMetaWord-wt-metal-atmosphere`, branch `exp/metal-atmosphere`, 
 
 - Branch atualizada com `main` em `4a286ee`. Conflitos restritos a README e HANDOFF, conciliando o experimento Metal com onboarding, capturas versionadas e o estado atual do motor local.
 - Código do app, testes, scripts e configuração do projeto idênticos aos do experimento validado em `08eb506`; testes anteriores continuam aplicáveis. Build repetido após a atualização, aprovado (`build/merge-prep-build.log`).
+- Integrada a `main` em `bed3303`; em seguida `exp/long-press-split` (`fd14e01`) entrou por cima, com conflitos de texto em README e SPEC e o `.xcodeproj` regenerado por XcodeGen.
 - Destino: `main` em `~/dev/TesteMetaWord`. As capturas e os resultados completos do Metal permanecem no `build/` da worktree `TesteMetaWord-wt-metal-atmosphere`; preservar antes de encerrá-la.
 
 ## Pendências

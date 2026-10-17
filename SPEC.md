@@ -88,9 +88,21 @@ O motor padrão é `RuleEngine`, que usa as regras locais da tabela acima, respo
 
 Merge consome as origens, cria resultado e sugestões e guarda o estado anterior completo. Undo (<) restaura um merge de cada vez, incluindo identidades, fases e contagens. Visualmente, o resultado se divide: a origem que compartilha sua identidade de vidro nasce no lugar dele, a outra sai com impulso, e as sugestões encolhem e somem. O foco volta a ser o resultado anterior (ou a palavra com mais combinações) e as zonas se recompõem. Long press de 0,6 s somente no resultado da última fusão faz o mesmo; ação equivalente disponível à acessibilidade.
 
+### Tensão antes da divisão (long press)
+
+Enquanto o dedo segura o resultado da última fusão (a bolha mestre divisível), a bolha acumula tensão durante os 0,6 s do long press:
+
+- **Tremor visual:** deslocamento trêmulo com amplitude crescente (progresso², até 2,5 pt) e leve inchaço até 1,04×. A órbita idle para nessa bolha enquanto ela é pressionada.
+- **Som tremular:** tom grave e suave com tremolo cuja frequência e volume crescem até o fim do long press.
+- **Estouro:** ao completar 0,6 s, um estalo curto (cerca de 90 ms, timbre de bolha) toca no mesmo instante da divisão, que segue o Undo descrito acima.
+- **Desistência:** soltar antes de 0,6 s ou começar a arrastar encerra tremor e som em cerca de 40 ms, sem estouro e sem mudança na composição.
+- **Indivisível:** segurar uma bolha que não é o resultado da última fusão não produz tensão.
+- O som usa a categoria de áudio ambiente: respeita o modo silencioso e se mistura a outros áudios. Os sons são sintetizados no app (`SplitTension.swift`), sem arquivos de áudio.
+- **Háptico:** o iPad não tem Taptic Engine, então o dedo não sente háptico; o som substitui esse retorno. Háptico fica pendente até haver um dispositivo-alvo que vibre.
+
 ## Movimento reduzido
 
-Sem órbita, impulso, pulso ou recuo espacial. Cada mudança calcula o equilíbrio de uma vez; palavras surgem e somem por dissolve. Os campos de atmosfera atualizam posição, dimensão e intensidade sem interpolação, inclusive durante fusão e Undo.
+Sem órbita, impulso, pulso ou recuo espacial. Cada mudança calcula o equilíbrio de uma vez; palavras surgem e somem por dissolve. Os campos de atmosfera atualizam posição, dimensão e intensidade sem interpolação, inclusive durante fusão e Undo. O long press não treme nem incha a bolha; o som de tensão e o estouro permanecem.
 
 ## Calibração
 
@@ -98,4 +110,4 @@ Popover com escolha Metal/Gradientes, indicação do renderizador ativo e distâ
 
 ## Validação
 
-Swift Testing: vocabulário, confirmação, armar/desarmar, cancelamento, Undo, foco e zonas de relevância, física (foco no centro, zonas ordenadas, ausência de pontes em repouso, nascimento) e órbita. Testes de interface arrastam e soltam sobre alvos reais, observam o resultado sem toque adicional e conferem Undo e soltura superficial. Nos dois modos, o percurso eu + querer → Eu quero + comer → Eu quero comer + agora → Eu quero comer agora registra o estado inicial, a primeira fusão, a frase com Zona 1 vazia e Undo. Durante o primeiro arrasto, XCTest mantém 60% de sobreposição e a pressão por 8 s para captura externa do estado armado por `simctl` (`scripts/capture-atmosphere.py`). A comparação na mesma sessão verifica preservação dos corpos, composição e Undo; rotação verifica o canvas com frase longa. A soltura superficial inclui pressão mantida para captura da resistência. Build e testes não provam a sensação da física nem o desempenho no iPad físico.
+Swift Testing: vocabulário, confirmação, armar/desarmar, cancelamento, Undo, foco e zonas de relevância, física (foco no centro, zonas ordenadas, ausência de pontes em repouso, nascimento) e órbita. Testes de interface arrastam e soltam sobre alvos reais, observam o resultado sem toque adicional e conferem Undo, soltura superficial e long press (divide o resultado; não divide uma palavra indivisível). A curva do tremor e a forma dos sons são testadas como funções puras; o que se ouve e se sente exige escuta no simulador ou no iPad. Nos dois modos, o percurso eu + querer → Eu quero + comer → Eu quero comer + agora → Eu quero comer agora registra o estado inicial, a primeira fusão, a frase com Zona 1 vazia e Undo. Durante o primeiro arrasto, XCTest mantém 60% de sobreposição e a pressão por 8 s para captura externa do estado armado por `simctl` (`scripts/capture-atmosphere.py`). A comparação na mesma sessão verifica preservação dos corpos, composição e Undo; rotação verifica o canvas com frase longa. A soltura superficial inclui pressão mantida para captura da resistência. Build e testes não provam a sensação da física nem o desempenho no iPad físico.

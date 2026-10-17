@@ -160,6 +160,39 @@ import XCTest
         add(attachment)
     }
 
+    /// Holding the latest result builds tension and splits it at 0.6 s, without another tap.
+    func testLongPressSplitsTheLatestResult() {
+        let app = XCUIApplication()
+        app.launch()
+        let source = app.buttons["chip-querer"]
+        let target = app.buttons["chip-ir"]
+        XCTAssertTrue(source.waitForExistence(timeout: 5))
+        source.press(forDuration: 0.05, thenDragTo: target)
+        let result = app.buttons["chip-Quero ir"]
+        XCTAssertTrue(result.waitForExistence(timeout: 5))
+        guard result.exists else { return }
+        sleep(2) // let the result settle at the center
+        result.press(forDuration: 1.0)
+        XCTAssertTrue(source.waitForExistence(timeout: 3), "Segurar o resultado deve dividi-lo")
+        XCTAssertTrue(target.exists)
+        XCTAssertFalse(result.exists)
+        XCTAssertFalse(app.buttons["Desfazer"].isEnabled)
+    }
+
+    /// A word that is not the latest result has nothing to split.
+    func testLongPressOnAnIndivisibleWordKeepsTheComposition() {
+        let app = XCUIApplication()
+        app.launch()
+        let focus = app.buttons["chip-querer"]
+        XCTAssertTrue(focus.waitForExistence(timeout: 5))
+        sleep(2)
+        let count = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "chip-")).count
+        focus.press(forDuration: 1.0)
+        XCTAssertTrue(focus.exists)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "chip-")).count, count)
+        XCTAssertFalse(app.buttons["Desfazer"].isEnabled)
+    }
+
     func testDropMergesWithoutAnotherTapAndUndoRestoresWords() {
         let app = XCUIApplication()
         app.launch()

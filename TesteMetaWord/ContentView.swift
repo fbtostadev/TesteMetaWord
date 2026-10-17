@@ -17,6 +17,10 @@ struct ContentView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .title3) private var fontSize = 20.0
+    @State private var splitSound = SplitSound()
+    /// The master bubble under a long press that will split it, and when the press began.
+    @State private var tension: (id: UUID, start: TimeInterval)?
+    @GestureState private var pressing: UUID?
 
     private var motion: Animation? { reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.82) }
     /// Births and removals: a quick spring for the budding, a plain dissolve with Reduce Motion.
@@ -128,22 +132,47 @@ struct ContentView: View {
                                 .allowsHitTesting(false)
                         }
                         .offset(membraneOffset(chip, space, time: time))
+                        .offset(tensionProgress(chip, time: time).map { SplitTension.offset(progress: $0, time: time) } ?? .zero)
+                        .scaleEffect(tensionProgress(chip, time: time).map(SplitTension.scale) ?? 1)
                         .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: composition.resistance)
                         .position(rendered(chip, space, time: time))
                         .zIndex(composition.dragging == chip.id || fusingPair?.source == chip.id ? 1 : 0)
                         .transition(transition(for: chip))
                         .simultaneousGesture(drag(chip.id, space))
-                        .simultaneousGesture(LongPressGesture(minimumDuration: 0.6).onEnded { _ in
-                            guard fusingPair == nil, composition.dragging == nil, composition.latestResult == chip.id else { return }
-                            ignoreTapUntil = Date().addingTimeInterval(0.4)
-                            undo(chip.id, space)
-                        })
+                        .simultaneousGesture(LongPressGesture(minimumDuration: SplitTension.duration)
+                            .updating($pressing) { isPressing, state, _ in if isPressing { state = chip.id } }
+                            .onEnded { _ in
+                                guard canSplit(chip.id) else { return }
+                                ignoreTapUntil = Date().addingTimeInterval(0.4)
+                                splitSound.burst()
+                                undo(chip.id, space)
+                            })
                     }
                 }
             }
         }
         .frame(width: space.canvas.width, height: space.canvas.height)
         .coordinateSpace(name: "canvas")
+        .onChange(of: pressing) { _, id in
+            if let id, canSplit(id) {
+                tension = (id, Date().timeIntervalSinceReferenceDate)
+                splitSound.begin()
+            } else if tension != nil {
+                tension = nil
+                splitSound.cancel()
+            }
+        }
+    }
+
+    /// Only the latest result divides, and never in the middle of another act.
+    private func canSplit(_ id: UUID) -> Bool {
+        fusingPair == nil && composition.dragging == nil && composition.latestResult == id
+    }
+
+    /// Long-press tension on the master bubble. No tremor with Reduce Motion; the sound remains.
+    private func tensionProgress(_ chip: WordChip, time: TimeInterval) -> Double? {
+        guard !reduceMotion, let tension, tension.id == chip.id else { return nil }
+        return SplitTension.progress(since: tension.start, now: time)
     }
 
     /// Both renderers consume the same snapshot. Geometry follows the visible surfaces;
@@ -294,6 +323,7 @@ struct ContentView: View {
         let position = bodies[chip.id]?.position ?? space.center
         let floats = !reduceMotion && composition.dragging != chip.id && composition.selected != chip.id
             && composition.activePair?.contains(chip.id) != true && fusingPair?.contains(chip.id) != true
+            && tension?.id != chip.id
         let orbit = Physics.orbit(phase: chip.phase, time: time, amplitude: floats ? Physics.orbitAmplitude : 0)
         return CGPoint(x: position.x + orbit.dx, y: position.y + orbit.dy)
     }
