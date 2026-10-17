@@ -98,6 +98,17 @@ Worktree `TesteMetaWord-wt-remocao`, a partir de `main` em `6492d3c`. Ainda **n�
 - **Limites:** frase que quebra linha não tem palavras medidas, então não cede palavra; dois dedos não retiram; não há alternativa por toque simples sem VoiceOver; a sacudida da palavra retirada segue as regras de sempre.
 - **Verificação:** build aprovado, 87 Swift Testing (9 novos em `RemovalTests`) e o percurso de interface estendido (puxar “ir” de “Quero ir”, recolocá-la à direita, dois Undos, long press), aprovados no simulador iPad Pro 13-inch (M5). **Não conferido à mão:** a sensação do limiar de 0,2 s, a convivência com o arrasto da BubbleKey inteira e com o long press, a ação do VoiceOver, o idle da palavra retirada; nada no iPad físico.
 
+## Experimento: escala na passagem (`exp/remocao`)
+
+Feito sobre a remoção, na mesma branch. Regras em `SPEC.md` (“Sons de fundo”).
+
+- **Removido:** o tom contínuo de profundidade (`DepthTone`, `DepthVoice`, `DepthSound`) e seus testes. A sobreposição estática fica em silêncio.
+- **Passagem:** cada arrasto sorteia um de 5 presets de escala sobre ré (`SfxScale.presets`), sem repetir o anterior; cada troca de fresta da BubbleKey sob a palavra arrastada toca o grau correspondente (`Sfx.pass`, 0,08 s de intervalo mínimo, 4 players em rodízio para as notas se sobreporem).
+- **Snap:** uma palavra que entra na BubbleKey toca tônica + quinta da escala (`Sfx.snap`) no lugar da nota de fusão. Fusões sem a BubbleKey seguem com a nota de fusão.
+- **Mais discreto (a pedido):** passagem de 0,3 → 0,2 s e pico de 0,028 → 0,014, snap de 0,5 → 0,36 s e picos de 0,026/0,02 → 0,016/0,011, timbre com um só harmônico fraco (`SfxSynth.hush`), intervalo da passagem de 0,05 → 0,08 s. Ajustar por ouvido.
+- **Leitura minha do pedido, a confirmar:** “passagem” = passar pelas frestas da BubbleKey, não por qualquer bolha; “snap” = a entrada na BubbleKey. Arrastar por cima de outras bolhas continua mudo. A palavra recém-retirada da frase também toca uma nota ao pousar sobre a BubbleKey (a fresta sob ela aparece de imediato).
+- **Verificação:** build e 90 Swift Testing aprovados (forma pura dos sons). **Nada ouvido ainda:** o timbre das 5 escalas, o volume, se o snap soa como encaixe e se as notas da varredura incomodam em uso contínuo precisam de escuta no simulador ou no iPad.
+
 ## Pendências
 
 - Avaliação manual da sensação do gesto e da física, do idle em uso de C.A., da membrana, do long press, do VoiceOver, do desempenho; iPad físico.
