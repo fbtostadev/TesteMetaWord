@@ -98,3 +98,7 @@ Branch `exp/pinca`. As regras estão no `SPEC.md` (seção "Pinça"). O `TouchTr
 - **Limite do XCTest:** `pinch(withScale:)` pousa os dois dedos na diagonal da moldura de um único elemento. Como as bolhas mudam de lugar a cada abertura, não há teste automatizado confiável da pinça entre duas bolhas. Essa é a exceção registrada à regra de validar o gesto inteiro em teste de interface.
 - **Simulador:** o autor conferiu à mão, em 16/10/2026, a pinça entre duas bolhas e a divisão por long press com tremor e som.
 - **Pendente no iPad físico:** dedos reais, terceiro dedo, o dedo que sobra depois da fusão e a folga entre dedos em chips largos e pequenos.
+
+## Licença
+
+Apache License 2.0. O texto completo está em [LICENSE](LICENSE), e o aviso de autoria que deve acompanhar qualquer redistribuição está em [NOTICE](NOTICE). Os dados e modelos em `ml/` podem ter licenças próprias (por exemplo, a do modelo base usado no treino).
