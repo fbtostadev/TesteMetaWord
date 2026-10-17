@@ -77,7 +77,13 @@ Proposta aprovada para outra sessão, ainda não iniciada. Parte de `exp/gramati
   4. acessibilidade (VoiceOver ajustável “no início / depois de … / no fim”, setas no teclado) e teste de interface soltando à esquerda e à direita da mesma bolha.
 - **Decisões a tomar antes de começar:**
   - **decidido (autor, 17/10):** a ordem escolhida pelo usuário é final, e a gramática só conjuga. Ordens naturais contam como fusão forte e as demais como mais fraca (“Quero agora ir” fica assim);
-  - tirar uma palavra da frase desfaz só aquela palavra? Isso muda o Undo, que hoje volta um estado inteiro por vez.
+  - **decidido (autor, 17/10):** remover e reordenar palavras dentro da frase fica para depois das etapas 1–4. A remoção entra como **ato novo** no histórico, não como desfazer seletivo: o Undo continua linear e as sugestões já brotadas ficam. No gesto, segurar parado continua dividindo (com tensão); segurar e puxar uma palavra para fora da cápsula remove só aquela palavra.
+- **Requisito de hitbox (autor):** a área de cada palavra dentro da BubbleKey precisa ser calculada com precisão, para conciliar pegar ou inserir com o arrastar para desfazer:
+  - medir o frame real de cada palavra no layout de texto, e não estimar pela contagem de caracteres;
+  - dividir a cápsula sem zonas mortas, com a fronteira no meio do espaço entre palavras vizinhas e a altura inteira da cápsula, para que palavras curtas (“e”, “eu”) não fiquem com alvo minúsculo;
+  - para fora da cápsula, alvo mínimo de 44 pt, pensando em C.A.;
+  - separar segurar parado de puxar por um limiar de deslocamento, e a fresta de inserção por histerese;
+  - cobrir com testes de lógica as fronteiras dos alvos e os limiares, e com teste de interface o puxar para fora.
 - **Começar com:**
   ```sh
   git -C ~/dev/TesteMetaWord worktree add ../TesteMetaWord-wt-insercao-posicional -b exp/insercao-posicional exp/gramatica-procedural
