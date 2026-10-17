@@ -85,33 +85,46 @@ Worktree `TesteMetaWord-wt-insercao-posicional`, a partir de `exp/gramatica-proc
 - **Próximo:** ver o experimento de remoção, abaixo.
 - **Em aberto:** se pinça e toque devem também apontar fresta; texto de frases fora da ordem com fonoaudiólogos.
 
-## Experimento: remoção na frase (`exp/remocao`)
+## Experimento: remoção na frase e escala na passagem (`exp/remocao`)
 
-Worktree `TesteMetaWord-wt-remocao`, a partir de `main` em `6492d3c`. Integrada a `main` em `c384b7f`, junto com a escala na passagem (seção seguinte); suíte completa aprovada antes do merge (90 Swift Testing + percurso de interface). Regras em `SPEC.md` (“Retirar uma palavra da frase”).
+Integrado a `main` em `c384b7f`, a partir de `6492d3c`. A suíte completa passou antes do merge (90 Swift Testing e o percurso de interface). As regras estão em `SPEC.md`, em “Retirar uma palavra da frase” e “Sons de fundo”.
 
-- **Ideia:** retirar uma palavra da frase da BubbleKey reaproveita o que já existe. Segurar a palavra e puxar a **retira como ato novo** (a BubbleKey fica com o resto) e a palavra vira uma **bolha comum que o dedo continua arrastando**. Soltar longe deixa a remoção; soltar sobre a BubbleKey é a inserção posicional de sempre, e é assim que se **reordena**. Não há gesto, fresta nem hitbox novos além do pouso.
-- **Decisão confirmada pelo autor (17/10):** o handoff dizia “segurar parado divide, segurar e puxar remove”, mas não como distinguir isso de arrastar a BubbleKey inteira (que o teste de interface e a fusão por arrasto usam). Escolhi **tempo de repouso**: o dedo precisa ficar 0,2 s (`ContentView.pickHold`) na palavra antes de mover; antes disso, o arrasto é da BubbleKey inteira; parado até 0,45 s, divide. É a única regra por tempo fora do long press e é uma constante fácil de trocar (outra opção, descartada: puxar na vertical remove, na horizontal arrasta). Também confirmados: reordenar em dois atos e dois Undos, e o long press de uma BubbleKey editada desfazer a edição.
-- **Reordenar são dois atos** (retirar, inserir) e dois Undos; um ato único (“mover”) não foi feito. Pôr de volta no mesmo lugar reproduz a frase.
-- **Gramática:** `Grammar.remove` reescreve o resto (sujeito que sobra conjuga o modal ou o verbo; interjeição mantém as vírgulas; “e” vizinho some); a palavra volta na forma do dicionário (“Quero” → `querer`). `Lexicon.removals` traz, por palavra da frase, o resto e a palavra. `Composition.removeWord(at:)` mantém o `id` e a identidade de vidro da BubbleKey, uma fusão a menos; uma palavra cujo texto já está na tela, ou o “e”, só sai.
-- **Long press depois da retirada** desfaz a edição (último ato que produziu a BubbleKey), em vez de dividir a fusão original; isso muda o que “dividir” significa numa BubbleKey editada (confirmado pelo autor).
-- **Acessibilidade:** ação “Retirar <palavra>” em cada palavra da frase (VoiceOver), alternativa sem arrastar; depois a palavra segue o toque A → B com setas.
-- **Limites:** frase que quebra linha não tem palavras medidas, então não cede palavra; dois dedos não retiram; não há alternativa por toque simples sem VoiceOver; a sacudida da palavra retirada segue as regras de sempre.
-- **Verificação:** build aprovado, 87 Swift Testing (9 novos em `RemovalTests`) e o percurso de interface estendido (puxar “ir” de “Quero ir”, recolocá-la à direita, dois Undos, long press), aprovados no simulador iPad Pro 13-inch (M5). **Não conferido à mão:** a sensação do limiar de 0,2 s, a convivência com o arrasto da BubbleKey inteira e com o long press, o idle da palavra retirada; nada no iPad físico. A ação “Retirar …” do VoiceOver não será testada (dispensado pelo autor).
+### Remoção na frase
 
-## Experimento: escala na passagem (`exp/remocao`)
+Segurar uma palavra da frase da BubbleKey e puxar a retira. A BubbleKey fica com o resto da frase, e a palavra vira uma bolha comum que o dedo continua arrastando. Soltar longe deixa a palavra fora. Soltar sobre a BubbleKey é a inserção posicional de sempre, e é assim que se reordena. O gesto reaproveita o arrasto, a fresta e os alvos que já existiam; só o pouso é novo.
 
-Feito sobre a remoção, na mesma branch. Regras em `SPEC.md` (“Sons de fundo”).
+O handoff anterior dizia que segurar parado divide e que segurar e puxar remove, mas não dizia como separar isso de arrastar a BubbleKey inteira. Usei o tempo de repouso: o dedo precisa ficar 0,2 s na palavra (`ContentView.pickHold`) antes de mover. Mover antes disso arrasta a BubbleKey inteira, e ficar parado até 0,45 s divide. O autor confirmou em 17/10, junto com três escolhas:
 
-- **Removido:** o tom contínuo de profundidade (`DepthTone`, `DepthVoice`, `DepthSound`) e seus testes. A sobreposição estática fica em silêncio.
-- **Passagem:** cada arrasto sorteia um de 5 presets de escala sobre ré (`SfxScale.presets`), sem repetir o anterior; cada troca de fresta da BubbleKey sob a palavra arrastada toca o grau correspondente (`Sfx.pass`, 0,08 s de intervalo mínimo, 4 players em rodízio para as notas se sobreporem).
-- **Snap:** uma palavra que entra na BubbleKey toca tônica + quinta da escala (`Sfx.snap`) no lugar da nota de fusão. Fusões sem a BubbleKey seguem com a nota de fusão.
-- **Mais discreto (a pedido):** passagem de 0,3 → 0,2 s e pico de 0,028 → 0,014, snap de 0,5 → 0,36 s e picos de 0,026/0,02 → 0,016/0,011, timbre com um só harmônico fraco (`SfxSynth.hush`), intervalo da passagem de 0,05 → 0,08 s. Ajustar por ouvido.
-- **Leitura do pedido, confirmada pelo autor (17/10):** “passagem” = passar pelas frestas da BubbleKey, não por qualquer bolha; “snap” = a entrada na BubbleKey. Arrastar por cima de outras bolhas continua mudo. A palavra recém-retirada da frase também toca uma nota ao pousar sobre a BubbleKey (a fresta sob ela aparece de imediato).
-- **Verificação:** build e 90 Swift Testing aprovados (forma pura dos sons). **Nada ouvido ainda:** o timbre das 5 escalas, o volume, se o snap soa como encaixe e se as notas da varredura incomodam em uso contínuo precisam de escuta no simulador ou no iPad.
+- reordenar são dois atos (retirar e inserir) e dois Undos, sem um ato único de “mover”;
+- depois de uma retirada, o long press desfaz a edição em vez de dividir a fusão original;
+- o alvo mínimo de 44 pt vale para cada palavra da frase.
+
+A alternativa descartada era puxar na vertical para retirar e na horizontal para arrastar.
+
+`Grammar.remove` reescreve o resto da frase: o sujeito que sobra conjuga o modal (ou o verbo, sem modal), a interjeição mantém as vírgulas e um “e” vizinho some. A palavra volta na forma do dicionário (“Quero” vira `querer`). `Lexicon.removals` guarda, para cada palavra da frase, o resto e a palavra retirada. `Composition.removeWord(at:)` mantém o `id` e a identidade de vidro da BubbleKey, com uma fusão a menos. Se o texto da palavra já está na tela, ou se ela é um “e”, a palavra só sai da frase.
+
+Limites: uma frase que quebra linha não tem palavras medidas e não cede nenhuma, e dois dedos não retiram. Para quem não arrasta, o VoiceOver oferece a ação “Retirar <palavra>”; depois a palavra segue o toque A → B, com setas para a fresta. Sem VoiceOver não há alternativa por toque simples. A sacudida da palavra retirada segue as regras de sempre.
+
+### Escala na passagem
+
+O tom contínuo de profundidade (`DepthTone`, `DepthVoice`, `DepthSound`) saiu, com os testes dele. A sobreposição estática agora fica em silêncio. No lugar entraram dois sons:
+
+- **Passagem:** cada arrasto sorteia um de cinco presets de escala sobre ré (`SfxScale.presets`), nunca o do arrasto anterior. Cada troca de fresta da BubbleKey sob a palavra arrastada toca o grau correspondente. O intervalo mínimo é de 0,08 s, e quatro players em rodízio deixam as notas se sobrepor.
+- **Snap:** uma palavra que entra na BubbleKey toca a tônica e a quinta da escala (`Sfx.snap`), no lugar da nota de fusão. Fusões sem a BubbleKey mantêm a nota de fusão.
+
+“Passagem” são as frestas da BubbleKey e “snap” é a entrada nela, como o autor confirmou. Passar por cima de outras bolhas continua mudo. A palavra recém-retirada também toca uma nota ao pousar sobre a BubbleKey, porque a fresta sob ela aparece de imediato.
+
+Na primeira escuta o autor pediu mais discrição. A passagem foi de 0,3 para 0,2 s e de pico 0,028 para 0,014. O snap foi de 0,5 para 0,36 s, com picos de 0,016 e 0,011. O timbre ficou com um só harmônico fraco (`SfxSynth.hush`). Depois disso o autor ouviu no simulador e aprovou (“ficou bom”).
+
+### Validação
+
+Compilado. 90 Swift Testing passam, entre eles 9 novos de remoção e os de forma dos sons. O percurso de interface puxa “ir” de “Quero ir”, recoloca a palavra à direita, desfaz os dois atos e divide por long press, no simulador iPad Pro 13-inch (M5). Os sons foram ouvidos e aprovados pelo autor no simulador.
+
+Não vai ser conferido: o autor disse (17/10) que provavelmente não testará o gesto de retirada e que não tem iPad físico por ora. Ficam sem validação o limiar de 0,2 s, a convivência dele com o arrasto da BubbleKey inteira e com o long press, o idle da palavra retirada e tudo no iPad físico. Os testes de VoiceOver foram dispensados.
 
 ## Pendências
 
-- Avaliação manual da sensação do gesto e da física, do idle em uso de C.A., da membrana, do long press, do desempenho; iPad físico. Testes de VoiceOver dispensados pelo autor (17/10): o recurso fica implementado, sem validação.
+- Avaliação manual da sensação do gesto e da física, do idle em uso de C.A., da membrana, do long press, do desempenho; iPad físico. Testes de VoiceOver dispensados pelo autor (17/10): o recurso fica implementado, sem validação. O autor também não pretende testar o gesto de retirada e não tem iPad físico por ora; a equipe que assumir pode precisar fazer essa avaliação.
 - Fora desta iteração:
   - tint do vidro;
   - hierarquia visual da frase;
