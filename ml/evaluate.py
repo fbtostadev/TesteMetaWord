@@ -38,7 +38,7 @@ def main():
 
     model, tokenizer = load(args.model, adapter_path=args.adapter)
     rows = [json.loads(line) for line in open(HERE / "data" / f"{args.split}.jsonl")][: args.limit]
-    stats = {"fusao": {"n": 0, "json": 0, "result": 0, "suggestions": 0, "positives": 0, "positives_ok": 0, "negatives": 0, "negatives_ok": 0},
+    stats = {"fusao": {"n": 0, "json": 0, "result": 0, "suggestions": 0, "validity": 0, "positives": 0, "positives_ok": 0, "negatives": 0, "negatives_ok": 0},
              "atmosfera": {"n": 0, "json": 0, "words": 0, "words_ok": 0, "exact": 0}}
     seconds, tokens, failures = 0.0, 0, []
     for row in rows:
@@ -59,6 +59,8 @@ def main():
             positive = expected["resultado"] is not None
             right = "resultado" in answer and answer["resultado"] == expected["resultado"]
             s["result"] += right
+            # Same decision Jev is scored on: did it call the pair valid or invalid correctly?
+            s["validity"] += "resultado" in answer and (answer["resultado"] is not None) == positive
             s["suggestions"] += right and (not positive or answer.get("sugestoes") == expected["sugestoes"])
             s["positives" if positive else "negatives"] += 1
             s["positives_ok" if positive else "negatives_ok"] += right
@@ -81,6 +83,7 @@ def main():
         "model": args.model, "adapter": args.adapter, "split": args.split, "examples": len(rows),
         "fusao": {"n": f["n"], "json": share(f["json"], f["n"]), "result_exact": share(f["result"], f["n"]),
                   "with_suggestions": share(f["suggestions"], f["n"]),
+                  "valid_invalid_right": share(f["validity"], f["n"]),
                   "valid_pairs_right": share(f["positives_ok"], f["positives"]),
                   "invalid_pairs_rejected": share(f["negatives_ok"], f["negatives"])},
         "atmosfera": {"n": a["n"], "json": share(a["json"], a["n"]), "words_in_right_zone": share(a["words_ok"], a["words"]),

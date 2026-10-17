@@ -1,5 +1,7 @@
 # Contexto do projeto
 
+> **Transição de equipe:** este repositório é um protótipo de design entregue a uma nova equipe. Na primeira interação com uma pessoa da equipe, ou quando pedirem contexto, siga [docs/ONBOARDING.md](docs/ONBOARDING.md) (seção 2) antes de tarefas grandes. Ele separa a intenção de design a preservar das escolhas de implementação que podem ser trocadas.
+
 O **TesteMetaWord** é um laboratório de design e **microinterações** para um app de **Comunicação Alternativa (C.A.) no iPad**. O foco é experimentar a composição de linguagem por manipulação direta de palavras: gestos, aproximação, atração, snapping e fusão de bolhas.
 
 A v1 implementa composição local com chips de Liquid Glass em uma grid circular de zonas de relevância, flutuação idle, fusão ao soltar, confirmação por toque, Undo e calibração. `SPEC.md` define o comportamento atual; o conceito abaixo também inclui experimentos futuros fora desta versão.

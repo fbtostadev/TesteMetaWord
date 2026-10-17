@@ -1,0 +1,160 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "adapter": "adapters/qwen3-0.6b-r2",
+  "split": "test",
+  "examples": 400,
+  "fusao": {
+    "n": 300,
+    "json": 1.0,
+    "result_exact": 0.97,
+    "with_suggestions": 0.97,
+    "valid_invalid_right": 0.97,
+    "valid_pairs_right": 1.0,
+    "invalid_pairs_rejected": 0.864
+  },
+  "atmosfera": {
+    "n": 100,
+    "json": 1.0,
+    "words_in_right_zone": 0.807,
+    "exact": 0.53
+  },
+  "latency_ms_per_call": 751,
+  "tokens_per_second": 27.6,
+  "failures": [
+    {
+      "prompt": "atmosfera: foco \"Não posso comer\"; palavras: [\"para casa\", \"aqui\", \"beber\", \"arroz\", \"você\", \"poder\", \"dormir\"]",
+      "expected": {
+        "1": [
+          "arroz",
+          "você"
+        ],
+        "2": [
+          "beber",
+          "poder",
+          "dormir"
+        ],
+        "3": [
+          "para casa",
+          "aqui"
+        ]
+      },
+      "got": "{\"1\":[\"você\",\"você\",\"poder\",\"dormir\"],\"2\":[],\"3\":[\"para casa\",\"aqui\",\"arroz\"]}"
+    },
+    {
+      "prompt": "atmosfera: foco \"Nós não gostamos de comer agora\"; palavras: [\"mais\", \"lá fora\", \"desenho\", \"à escola\", \"biscoito\", \"pão\"]",
+      "expected": {
+        "1": [
+          "mais",
+          "biscoito",
+          "pão"
+        ],
+        "2": [],
+        "3": [
+          "lá fora",
+          "desenho",
+          "à escola"
+        ]
+      },
+      "got": "{\"1\":[\"lá fora\",\"desenho\",\"biscoito\",\"pão\"],\"2\":[],\"3\":[\"mais\",\"à escola\",\"pão\"]}"
+    },
+    {
+      "prompt": "atmosfera: foco \"gostar\"; palavras: [\"amanhã\", \"mais\", \"ir\"]",
+      "expected": {
+        "1": [
+          "ir"
+        ],
+        "2": [],
+        "3": [
+          "amanhã",
+          "mais"
+        ]
+      },
+      "got": "{\"1\":[\"amanhã\"],\"2\":[],\"3\":[\"mais\",\"ir\"]}"
+    },
+    {
+      "prompt": "atmosfera: foco \"Eu preciso comer depois\"; palavras: [\"lá fora\", \"biscoito\", \"arroz\", \"ali\"]",
+      "expected": {
+        "1": [
+          "biscoito",
+          "arroz"
+        ],
+        "2": [],
+        "3": [
+          "lá fora",
+          "ali"
+        ]
+      },
+      "got": "{\"1\":[\"lá fora\",\"biscoito\",\"arroz\",\"ali\"],\"2\":[],\"3\":[\"ali\"]}"
+    },
+    {
+      "prompt": "atmosfera: foco \"Você gosta de brincar depois\"; palavras: [\"com bola\", \"leite\", \"pão\", \"não\"]",
+      "expected": {
+        "1": [
+          "com bola",
+          "não"
+        ],
+        "2": [],
+        "3": [
+          "leite",
+          "pão"
+        ]
+      },
+      "got": "{\"1\":[\"não\"],\"2\":[],\"3\":[\"com bola\",\"leite\",\"pão\"]}"
+    },
+    {
+      "prompt": "atmosfera: foco \"Quero ir amanhã\"; palavras: [\"precisar\", \"aqui\", \"querer\", \"perto\", \"você\", \"nós\", \"ao parque\"]",
+      "expected": {
+        "1": [
+          "você",
+          "nós",
+          "ao parque"
+        ],
+        "2": [
+          "precisar",
+          "querer"
+        ],
+        "3": [
+          "aqui",
+          "perto"
+        ]
+      },
+      "got": "{\"1\":[\"você\",\"nós\"],\"2\":[\"precisar\",\"querer\"],\"3\":[\"aqui\",\"perto\",\"ao parque\"]}"
+    },
+    {
+      "prompt": "atmosfera: foco \"Eu posso ver hoje\"; palavras: [\"pão\", \"aqui\", \"TV\", \"nós\", \"leite\", \"não\", \"desenho\"]",
+      "expected": {
+        "1": [
+          "TV",
+          "não",
+          "desenho"
+        ],
+        "2": [],
+        "3": [
+          "pão",
+          "aqui",
+          "nós",
+          "leite"
+        ]
+      },
+      "got": "{\"1\":[\"TV\",\"nós\",\"TV\",\"TV\",\"TV\",\"TV\",\"TV\",\"desenho\"],\"2\":[],\"3\":[\"pão\",\"aqui\",\"leite\",\"não\"]}"
+    },
+    {
+      "prompt": "atmosfera: foco \"Eu posso dormir depois\"; palavras: [\"gostar\", \"ir\", \"comer\", \"não\", \"obrigado\", \"ali\"]",
+      "expected": {
+        "1": [
+          "não"
+        ],
+        "2": [
+          "gostar",
+          "ir",
+          "comer"
+        ],
+        "3": [
+          "obrigado",
+          "ali"
+        ]
+      },
+      "got": "{\"1\":[\"não\"],\"2\":[\"gostar\",\"ir\",\"comer\",\"não\",\"obrigado\",\"ali\"],\"3\":[\"gostar\",\"obrigado\"]}"
+    }
+  ]
+}

@@ -2,6 +2,8 @@
 
 Laboratório SwiftUI para iPadOS 26+: palavras em Liquid Glass numa grid circular orgânica, com centro óptico, zonas de relevância, fusão ao arrastar e soltar (mitose reversa), sugestões que brotam do resultado (mitose), alternativa por toque e Undo. Veja [SPEC.md](SPEC.md).
 
+**Equipe que assume o projeto:** comece por [docs/ONBOARDING.md](docs/ONBOARDING.md) (origem do protótipo, intenção de design, estado e briefing para agentes de IA). Prospecção de longo prazo em [future-HANDOFF.md](future-HANDOFF.md).
+
 Abra `TesteMetaWord.xcodeproj` no Xcode 26+. Para dispositivo físico, configure sua equipe em Signing & Capabilities.
 
 ## Versionamento
@@ -43,18 +45,17 @@ Se o ambiente impedir o sandbox de macros, use `./scripts/build.sh 'OTHER_SWIFT_
 
 Build para dispositivo sem assinatura: `build/DerivedData/Build/Products/Debug-iphoneos/TesteMetaWord.app`.
 
-Para capturar a atmosfera sem disputar o simulador de outro experimento, use um iPad dedicado já iniciado e seu UDID em `ATMOSPHERE_DEVICE`:
+Para capturar a atmosfera sem disputar o simulador de outro experimento, use um iPad dedicado já iniciado e passe seu UDID (`xcrun simctl list devices booted`):
 
 ```sh
-ATMOSPHERE_DEVICE=BA1C5382-C4B3-4FFA-A009-6A5228047E68
-python3 scripts/capture-atmosphere.py "$ATMOSPHERE_DEVICE" --label comparacao-01
+python3 scripts/capture-atmosphere.py <UDID> --label comparacao-01
 ```
 
 O script executa a suíte completa com `xcodebuild test`; use `--only-atmosphere` para repetir os dois percursos visuais e a soltura superficial; `--only-metal` executa somente o percurso Metal com A/B e rotação. Usa somente a biblioteca padrão do Python 3. Cada `--label` deve ser novo, pois preserva o `.xcresult` anterior. Logs, resultados, capturas PNG e anexos exportados ficam em `build/`. O XCTest segura o arrasto por 8 s; `simctl` captura enquanto ele permanece pressionado. Os nomes incluem `metal` ou `gradients`. Sequências `fusion` e `split` registram a reorganização e o Undo; `resistance` registra a pressão superficial. O teste abre a calibração e exige “Metal ativo”, para não aceitar o fallback como evidência do shader. O argumento `--atmosphere-renderer=gradients` permite iniciar a referência na automação.
 
 ## Referência preservada
 
-O fundo por gradientes foi salvo em `6543743`, com build aprovado e 21 testes de lógica + 3 de interface. Esse commit é a base deste experimento e foi integrado a `main` por `4a286ee`. A worktree anterior foi encerrada; as novas capturas de referência por gradientes ficam no `build/` deste experimento.
+O fundo por gradientes foi salvo em `6543743`, com build aprovado e 21 testes de lógica + 3 de interface. Esse commit é a base deste experimento e foi integrado a `main` por `4a286ee`. As capturas da referência estão versionadas em [docs/media](docs/media): `atmosphere-{initial,armed,first-fusion,long-phrase,undo}.jpg`. A worktree anterior foi encerrada; as novas capturas de comparação com Metal ficam no `build/` deste experimento.
 
 ## Experimento Metal
 

@@ -2,7 +2,7 @@
 
 ## Objetivo desta iteração
 
-Na worktree `TesteMetaWord-wt-metal-atmosphere`, branch `exp/metal-atmosphere`, comparar um shader de luz procedural com o fundo por gradientes. A referência foi preservada no commit `6543743` da branch `exp/refactor-bg`. O objetivo é continuidade visual sutil durante o gesto; a avaliação desta etapa usa o simulador.
+Na worktree `TesteMetaWord-wt-metal-atmosphere`, branch `exp/metal-atmosphere`, comparar um shader de luz procedural com o fundo por gradientes. A referência foi preservada no commit `6543743`, integrado a `main` em `4a286ee`. O objetivo é continuidade visual sutil durante o gesto; a avaliação desta etapa usa o simulador.
 
 ## Estado entregue
 
@@ -25,7 +25,7 @@ Na worktree `TesteMetaWord-wt-metal-atmosphere`, branch `exp/metal-atmosphere`, 
 
 ## Verificação
 
-- Referência: build aprovado, 21 testes de lógica e 3 de interface no commit `6543743`.
+- Referência: build aprovado, 21 testes de lógica e 3 de interface no commit `6543743`; capturas versionadas em `docs/media/atmosphere-{initial,armed,first-fusion,long-phrase,undo}.jpg`.
 - O teste visual executa três arrastos e Undo em cada renderizador; confirma Metal ativo, compara modos na mesma sessão e captura rotação com frase longa. A soltura superficial inclui pressão mantida para observar resistência.
 - `scripts/capture-atmosphere.py` executa em UDID explícito e exporta capturas com modo e label em `build/`, incluindo o gesto armado enquanto XCTest mantém a pressão.
 
@@ -34,13 +34,20 @@ Na worktree `TesteMetaWord-wt-metal-atmosphere`, branch `exp/metal-atmosphere`, 
 - A revisão da sequência revelou um halo deslocado durante a medição do foco após fusão. A última geometria válida agora é retida nesse intervalo. Build e percurso Metal com A/B, rotação e Undo aprovados novamente (`build/atmosphere-focus-continuity.xcresult`); nova sequência inspecionada.
 - Uma execução do teste aleatório de física excedeu o limite de centralização (4,45 pt contra 4 pt). Sem alterações nesse código; os 4 testes de física passaram isoladamente em `build/physics-recheck.xcresult`. Detalhes e nomes das capturas no README.
 
+## Preparação para integração
+
+- Branch atualizada com `main` em `4a286ee`. Conflitos restritos a README e HANDOFF, conciliando o experimento Metal com onboarding, capturas versionadas e o estado atual do motor local.
+- Código do app, testes, scripts e configuração do projeto idênticos aos do experimento validado em `08eb506`; testes anteriores continuam aplicáveis. Build repetido após a atualização, aprovado (`build/merge-prep-build.log`).
+- Destino: `main` em `~/dev/TesteMetaWord`. As capturas e os resultados completos do Metal permanecem no `build/` da worktree `TesteMetaWord-wt-metal-atmosphere`; preservar antes de encerrá-la.
+
 ## Pendências
 
 - Avaliação manual da sensação do gesto e da física, do idle em uso de C.A., da membrana, do long press, do VoiceOver, do desempenho; iPad físico.
 - Fora desta iteração:
-  - tint/fundo do vidro;
+  - tint do vidro;
   - hierarquia visual da frase;
   - membrana em rubber band;
   - glifo do Undo;
   - ordem espacial do VoiceOver.
-- Motor de IA local: seam pronto no app (`CompositionEngine`, `RuleEngine`, `Composition.refresh()`), workspace `ml/` com dataset, LoRA e avaliação. Próximo: revisar `ml/vocabulary.json`, treinar a sério, fundir/quantizar e implementar `LocalModelEngine` com MLX Swift (validar em iPad físico).
+- Motor de IA local: seam pronto no app (`CompositionEngine`, `RuleEngine`, `Composition.refresh()`). Rodada 2 do LoRA treinada e avaliada (`ml/README.md`). Próximo: fundir/quantizar o adaptador r2 e implementar `LocalModelEngine` com MLX Swift só para fusões (validar em iPad físico).
+- Prospecção de longo prazo (vocabulário aberto, dados, treino, avaliação e outros idiomas): [future-HANDOFF.md](future-HANDOFF.md).

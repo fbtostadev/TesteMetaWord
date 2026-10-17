@@ -1,0 +1,40 @@
+{
+  "model": [
+    "jev-1.13.0"
+  ],
+  "variant": "regras",
+  "split": "test",
+  "tuned_on": "valid",
+  "examples": 400,
+  "fusao": {
+    "n": 300,
+    "threshold": 0.25,
+    "valid_invalid_right": 0.903,
+    "valid_pairs_right": 0.944,
+    "invalid_pairs_rejected": 0.758,
+    "brier": 0.2307
+  },
+  "fusao_at_0.5": {
+    "n": 300,
+    "threshold": 0.5,
+    "valid_invalid_right": 0.553,
+    "valid_pairs_right": 0.427,
+    "invalid_pairs_rejected": 1.0,
+    "brier": 0.2307
+  },
+  "atmosfera": {
+    "n": 100,
+    "threshold": 0.75,
+    "words_in_right_zone": 0.683,
+    "exact": 0.32
+  },
+  "atmosfera_at_0.5": {
+    "n": 100,
+    "threshold": 0.5,
+    "words_in_right_zone": 0.58,
+    "exact": 0.21
+  },
+  "latency_ms_per_request": 373,
+  "input_tokens": 275089,
+  "cost_usd": 0.0116
+}
