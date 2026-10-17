@@ -4,6 +4,8 @@ enum Vocabulary {
     struct Combination: Equatable {
         let result: String
         let suggestions: [String]
+        /// 1 strong (a full phrase), 2 medium (telegraphic or repaired), 3 weak (coordinated).
+        var strength = 1
     }
 
     static let initial = ["querer", "ir", "comer", "beber", "eu", "brincar"]
@@ -12,11 +14,9 @@ enum Vocabulary {
         Grammar.shared.fuse(a, b)
     }
 
-    /// Relevance of `word` to the composition's optical center, as an atmosphere zone:
-    /// 1 combines with the focus, 2 combines with another present word, 3 has no combination.
-    static func zone(of word: String, focus: String, among words: [String]) -> Int {
-        if combine(word, focus) != nil { return 1 }
-        if words.contains(where: { $0 != focus && combine(word, $0) != nil }) { return 2 }
-        return 3
+    /// Relevance of `word` to the composition's optical center, as an atmosphere zone: the
+    /// strength of their fusion (every pair fuses; farther zones fuse more loosely).
+    static func zone(of word: String, focus: String) -> Int {
+        combine(word, focus)?.strength ?? 3
     }
 }

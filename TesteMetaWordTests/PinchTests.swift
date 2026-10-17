@@ -4,6 +4,13 @@ import CoreGraphics
 @testable import TesteMetaWord
 
 @MainActor struct PinchTests {
+    /// The grammar fuses every pair; an engine may still omit one, as this lexicon omits eu + brincar.
+    static func withoutEuBrincar() -> Composition {
+        var initial = RuleEngine.lexicon(for: Vocabulary.initial, focus: nil)
+        initial.fusions[["eu", "brincar"]] = nil
+        return Composition(initial: initial)
+    }
+
     @Test func convergingPinchArmsAndReleaseConfirmsTheFusion() {
         let c = Composition()
         let a = c.chips[0].id, b = c.chips[1].id // querer, ir
@@ -41,7 +48,7 @@ import CoreGraphics
     }
 
     @Test func incompatiblePairNeverArmsButTheMembraneResists() {
-        let c = Composition()
+        let c = Self.withoutEuBrincar()
         let a = c.chips[4].id, b = c.chips[5].id // eu, brincar
         c.beginPinch(a, b)
         c.updatePinch(penetration: -0.2, time: 0)
@@ -76,7 +83,7 @@ import CoreGraphics
     }
 
     @Test func rejectingOnlyWhileAnIncompatiblePinchTouches() {
-        let c = Composition()
+        let c = Self.withoutEuBrincar()
         c.beginPinch(c.chips[4].id, c.chips[5].id) // eu, brincar
         #expect(!c.rejecting)
         c.updatePinch(penetration: 0.9, time: 0.1)

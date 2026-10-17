@@ -50,12 +50,14 @@ struct GrammarTests {
         }
     }
 
-    @Test func initialWordsCombineExactlyAsBefore() {
+    @Test func initialWordsFuseStronglyExactlyAsBeforeAndLooselyOtherwise() {
         let words = Vocabulary.initial
         for (i, a) in words.enumerated() {
             for b in words[(i + 1)...] {
                 let legacy = Self.legacyRules.contains { Set([$0.0, $0.1]) == Set([a, b]) }
-                #expect((Vocabulary.combine(a, b) != nil) == legacy, "\(a) + \(b)")
+                let strength = Vocabulary.combine(a, b)?.strength
+                #expect(strength != nil, "\(a) + \(b) must fuse")
+                #expect((strength == 1) == legacy, "\(a) + \(b)")
             }
         }
     }
@@ -69,18 +71,55 @@ struct GrammarTests {
         #expect(Vocabulary.combine("Gosto de ver", "TV")?.suggestions == ["agora", "depois"])
         #expect(Vocabulary.combine("Quero ir", "ao parque")?.result == "Quero ir ao parque")
         #expect(Vocabulary.combine("Quero tomar banho", "amanhã")?.result == "Quero tomar banho amanhã")
+        #expect(Vocabulary.combine("Eu quero", "Você pode")?.strength == 3, "two subjects collide")
     }
 
-    @Test func grammarRejectsCollidingOrIncompleteFrames() {
-        #expect(Vocabulary.combine("eu", "brincar") == nil, "no modal")
-        #expect(Vocabulary.combine("querer", "agora") == nil, "time without a verb")
-        #expect(Vocabulary.combine("Quero beber", "pão") == nil, "complement of another verb")
-        #expect(Vocabulary.combine("Quero ir", "mais") == nil, "ir takes no quantity")
-        #expect(Vocabulary.combine("Quero ir agora", "depois") == nil, "two times")
-        #expect(Vocabulary.combine("Eu quero", "você") == nil, "two subjects")
-        #expect(Vocabulary.combine("Quero ir", "Quero comer") == nil, "two phrases")
-        #expect(Vocabulary.combine("aqui", "Quero ir") == nil, "extra words fill no slot")
+    /// Slots that fit outside the phrase grammar: telegraphic or repaired, zone 2.
+    @Test func fittingSlotsFuseWithMediumStrength() {
+        let cases: [(String, String, String)] = [
+            ("eu", "brincar", "Eu brinco"),
+            ("você", "dormir", "Você dorme"),
+            ("querer", "agora", "Quero agora"),
+            ("gostar", "água", "Gosto de água"),
+            ("Quero beber", "pão", "Quero beber pão"),
+            ("Quero ir", "mais", "Quero ir mais"),
+            ("Quero ir", "longe", "Quero ir longe"),
+            ("dor", "aqui", "Dor, aqui"),
+            ("sim", "Quero ir", "Sim, quero ir"),
+            ("comer", "agora", "Comer agora")
+        ]
+        for (a, b, result) in cases {
+            let fused = Vocabulary.combine(a, b)
+            #expect(fused?.result == result, "\(a) + \(b)")
+            #expect(fused?.strength == 2, "\(a) + \(b)")
+        }
+    }
+
+    /// Colliding slots, two phrases or an earlier weak result: coordinated, zone 3.
+    @Test func collidingSlotsFuseWeaklyByCoordination() {
+        let cases: [(String, String, String)] = [
+            ("Quero comer", "beber", "Quero comer e beber"),
+            ("Quero ir agora", "depois", "Quero ir agora e depois"),
+            ("Quero ir", "Quero comer", "Quero comer e quero ir"),
+            ("comer", "ir", "Comer e ir"),
+            ("obrigado", "sim", "Obrigado, sim")
+        ]
+        for (a, b, result) in cases {
+            let fused = Vocabulary.combine(a, b)
+            #expect(fused?.result == result, "\(a) + \(b)")
+            #expect(fused?.strength == 3, "\(a) + \(b)")
+        }
+        #expect(Vocabulary.combine("Quero comer e beber", "agora")?.result == "Quero comer e beber agora")
+        #expect(Vocabulary.combine("Quero comer", "beber")?.suggestions == ["mais", "menos"], "the leading phrase suggests")
         #expect(Vocabulary.combine("querer", "querer") == nil)
+    }
+
+    @Test func mediumResultsKeepFusingByTheirSlots() {
+        let telegraphic = Vocabulary.combine("comer", "agora")?.result
+        #expect(telegraphic == "Comer agora")
+        let full = Vocabulary.combine("Eu quero", telegraphic ?? "")
+        #expect(full?.result == "Eu quero comer agora")
+        #expect(full?.strength == 1)
     }
 
     @Test func everySuggestionIsAKnownWord() {

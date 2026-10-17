@@ -29,12 +29,11 @@ struct RuleEngine: CompositionEngine {
                 if let combination = Vocabulary.combine(a, b) { fusions[[a, b]] = combination }
             }
         }
-        // Without a fusion, the word that combines with the most others (the first on ties).
-        let center = focus ?? words.max { a, b in
-            words.count { Vocabulary.combine(a, $0) != nil } < words.count { Vocabulary.combine(b, $0) != nil }
-        }
+        // Without a fusion, the word with the most strong fusions (the first on ties).
+        func strong(_ word: String) -> Int { words.count { fusions[[word, $0]]?.strength == 1 } }
+        let center = focus ?? words.max { strong($0) < strong($1) }
         guard let center else { return Lexicon(fusions: fusions) }
-        let zones = Dictionary(words.filter { $0 != center }.map { ($0, Vocabulary.zone(of: $0, focus: center, among: words)) }) { first, _ in first }
+        let zones = Dictionary(words.filter { $0 != center }.map { ($0, Vocabulary.zone(of: $0, focus: center)) }) { first, _ in first }
         return Lexicon(fusions: fusions, focus: center, zones: zones)
     }
 }

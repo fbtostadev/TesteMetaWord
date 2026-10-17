@@ -214,6 +214,30 @@ import XCTest
         XCTAssertFalse(app.buttons["Desfazer"].isEnabled)
     }
 
+    /// After Quero ir, comer sits in the outer zone (its verb collides) and still fuses by drop.
+    func testOuterZoneWordFusesWithTheFocus() {
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertTrue(app.buttons["chip-querer"].waitForExistence(timeout: 5))
+        drag(app.buttons["chip-querer"], to: app.buttons["chip-ir"], in: app)
+        let focus = app.buttons["chip-Quero ir"]
+        XCTAssertTrue(focus.waitForExistence(timeout: 5))
+        guard focus.exists else { return }
+        sleep(2)
+        drag(app.buttons["chip-comer"], to: focus, in: app)
+        let weak = app.buttons["chip-Quero ir e comer"]
+        XCTAssertTrue(weak.waitForExistence(timeout: 5), "Uma palavra da zona externa também se funde")
+        guard weak.exists else { return }
+        sleep(2)
+        drag(app.buttons["chip-agora"], to: weak, in: app)
+        XCTAssertTrue(app.buttons["chip-Quero ir e comer agora"].waitForExistence(timeout: 5))
+        app.buttons["Desfazer"].tap()
+        XCTAssertTrue(weak.waitForExistence(timeout: 3))
+        app.buttons["Desfazer"].tap()
+        XCTAssertTrue(focus.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["chip-comer"].exists)
+    }
+
     func testDropMergesWithoutAnotherTapAndUndoRestoresWords() {
         let app = XCUIApplication()
         app.launch()

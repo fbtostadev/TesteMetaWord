@@ -56,11 +56,11 @@ struct Calibration: Equatable {
     var calibration = Calibration() { didSet { cancel() } }
     private var history: [(chips: [WordChip], result: UUID)] = []
 
-    init(engine: any CompositionEngine = RuleEngine()) {
+    /// `initial` is the lexicon of the initial words until the engine first answers.
+    init(engine: any CompositionEngine = RuleEngine(), initial: Lexicon = RuleEngine.lexicon(for: Vocabulary.initial, focus: nil)) {
         self.engine = engine
-        let rules = RuleEngine.lexicon(for: Vocabulary.initial, focus: nil)
-        lexicon = rules
-        fusions = rules.fusions
+        lexicon = initial
+        fusions = initial.fusions
     }
 
     var canUndo: Bool { !history.isEmpty }
