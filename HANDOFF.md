@@ -44,6 +44,8 @@ Na worktree `TesteMetaWord-wt-metal-atmosphere`, branch `exp/metal-atmosphere`, 
 
 ## Experimento: gramática procedural (`exp/gramatica-procedural`)
 
+Integrada a `main` em `b2806fd`.
+
 Worktree `TesteMetaWord-wt-gramatica-procedural`. A tabela de regras escrita à mão em `Vocabulary.swift` foi substituída por `Grammar.swift`, porte da classe `Grammar` de `ml/build_dataset.py`. Ela lê `ml/vocabulary.json`, que passa a ser recurso do app (via `project.yml`) e fonte única para o app e o dataset. A API de `Vocabulary` e o contrato `CompositionEngine`/`Lexicon` não mudaram.
 
 - **Cobertura:** 49 palavras; 4.992 frases fortes (antes, 41 pares). Entram sujeitos você/nós, negação, modais precisar/poder/gostar, verbos dormir/ver/ouvir/tomar banho, complementos, tempos hoje/amanhã, lugares e interjeições. As palavras iniciais não mudaram.
@@ -67,7 +69,7 @@ Worktree `TesteMetaWord-wt-gramatica-procedural`. A tabela de regras escrita à 
 
 ## Experimento: inserção posicional (`exp/insercao-posicional`)
 
-Worktree `TesteMetaWord-wt-insercao-posicional`, a partir de `exp/gramatica-procedural` (ainda fora da `main`). Etapas 1–4 da proposta entregues; regras em `SPEC.md` (“Inserção posicional”).
+Worktree `TesteMetaWord-wt-insercao-posicional`, a partir de `exp/gramatica-procedural`. Integrada a `main` em `eb1dd58`, logo depois da gramática procedural (`b2806fd`); suíte completa aprovada nas duas branches antes de cada merge (61 e 78 Swift Testing + percurso de interface). Etapas 1–4 da proposta entregues; regras em `SPEC.md` (“Inserção posicional”).
 
 - **Ideia:** a posição do drag sobre a BubbleKey escolhe a fresta entre palavras onde a nova entra; a frase abre espaço ao vivo e se fecha ao afastar.
 - **Decisões do autor (17/10) aplicadas:** a ordem escolhida é final e a gramática só conjuga; na ordem natural, a força da fusão; fora dela, um grau mais fraca (“Quero agora ir”, média). Remoção e reordenação ficam para depois: entram como **ato novo** no histórico (Undo continua linear, sugestões ficam); segurar parado divide, segurar e puxar uma palavra para fora remove só ela.
