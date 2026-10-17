@@ -418,10 +418,11 @@ struct ContentView: View {
                 .map { ($0.id, bodies[$0.id]?.position ?? space.center) })
             let adapted = births.isEmpty ? kept : Physics.adapt(cells: kept, births: births, sizes: space.sizes, grid: grid,
                                                                 bounds: space.bounds, affinity: affinity)
-            // Holes left by words that went away settle toward the honeycomb's center, from the
-            // inside out; a hole-free honeycomb stays still. The focus keeps its place.
+            // The honeycomb closes around the BubbleKey, from the inside out; the BubbleKey keeps
+            // its place and words beyond the gravity's reach stay still.
+            let focus = composition.focus
             let compacted = Physics.compact(cells: adapted, sizes: space.sizes, grid: grid,
-                                            toward: grid.origin, fixed: composition.focus, bounds: space.bounds)
+                                            toward: focus.flatMap { adapted[$0] } ?? grid.origin, fixed: focus, bounds: space.bounds)
             // The BubbleKey returns to the center with the whole honeycomb, as one block.
             let centered = Physics.recenter(cells: compacted, grid: grid, focus: composition.focus, center: space.center)
             self.grid = centered.grid

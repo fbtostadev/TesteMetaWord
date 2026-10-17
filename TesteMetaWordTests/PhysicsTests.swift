@@ -153,8 +153,9 @@ struct PhysicsTests {
         }
         let grid = Physics.Grid(origin: center, sizes: sizes)
         let before = Physics.layout(sizes: sizes, focus: focus, zones: zones, center: center)
-        // Two neighbours in one row fuse.
-        let row = before.filter { $0.key != focus && abs($0.value.y - (center.y + grid.rowHeight)) < 1 }.sorted { $0.value.x < $1.value.x }
+        // The two words of the row below the BubbleKey that straddle it fuse.
+        let row = before.filter { $0.key != focus && abs($0.value.y - (center.y + grid.rowHeight)) < 1 }
+            .sorted { abs($0.value.x - center.x) < abs($1.value.x - center.x) }
         let (a, b) = (row[0].key, row[1].key)
         let birth = CGPoint(x: (before[a]!.x + before[b]!.x) / 2, y: before[a]!.y)
         var cells = before
@@ -165,13 +166,13 @@ struct PhysicsTests {
         for id in suggestions { sizes[id] = CGSize(width: 100, height: 56) }
         let births = Dictionary(uniqueKeysWithValues: ([result] + suggestions).map { ($0, birth) })
         let adapted = Physics.adapt(cells: cells, births: births, sizes: sizes, grid: grid, bounds: bounds)
-        let after = Physics.compact(cells: adapted, sizes: sizes, grid: grid, toward: grid.origin, fixed: result, bounds: bounds)
+        let after = Physics.compact(cells: adapted, sizes: sizes, grid: grid, toward: adapted[result]!, fixed: result, bounds: bounds)
 
         for (id, old) in cells where distance(old, birth) > 420 {
-            #expect(after[id] == old, "a word far from the fusion keeps its cell")
+            #expect(distance(after[id]!, old) <= 60, "a word far from the fusion at most settles a little")
         }
         let moved = cells.keys.filter { after[$0] != cells[$0] }
-        #expect(moved.count <= 8, "only a few neighbours make way, not \(moved.count)")
+        #expect(moved.count <= 12, "only a few neighbours make way, not \(moved.count)")
         #expect(abs(after[result]!.y - birth.y) <= grid.rowHeight, "the result takes its origins' place")
         for id in suggestions { #expect(distance(after[id]!, birth) < 400, "suggestions bud nearby") }
         let ids = Array(after.keys)
@@ -242,5 +243,25 @@ struct PhysicsTests {
             #expect(abs(distance(moved.cells[p]!, moved.cells[q]!) - distance(cells[p]!, cells[q]!)) < 0.001, "no word changes neighbours")
         }
         #expect(moved.grid.row(moved.cells[b]!.y) - moved.grid.row(moved.cells[key]!.y) == grid.row(cells[b]!.y) - grid.row(cells[key]!.y), "nor rows")
+    }
+
+    /// After splits the BubbleKey can end up at the edge, with every word on one side: the
+    /// honeycomb closes around it again.
+    @Test func gravityClosesTheHoneycombAroundTheBubbleKey() {
+        let key = UUID()
+        var sizes = [key: CGSize(width: 200, height: 60)]
+        var cells = [key: center]
+        let grid = Physics.Grid(origin: center, sizes: sizes)
+        let right: [(CGFloat, Int)] = [(300, -1), (450, -1), (360, 0), (500, 0), (300, 1), (450, 1)]
+        for (x, row) in right {
+            let id = UUID()
+            sizes[id] = CGSize(width: 110, height: 56)
+            cells[id] = CGPoint(x: center.x + x, y: grid.y(row))
+        }
+        let settled = Physics.compact(cells: cells, sizes: sizes, grid: grid, toward: center, fixed: key, bounds: bounds)
+        let left = settled.filter { $0.key != key && $0.value.x < center.x - 20 }.count
+        #expect(left >= 2, "words come round to the other side of the BubbleKey")
+        let far = settled.filter { $0.key != key }.map { distance($0.value, center) }.max()!
+        #expect(far < 300, "and close in around it")
     }
 }

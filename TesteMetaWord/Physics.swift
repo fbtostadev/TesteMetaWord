@@ -187,19 +187,19 @@ enum Physics {
         return cells
     }
 
-    /// Gentle gravity toward `core` (the honeycomb's fixed center, not the moving focus, so a
-    /// hole-free honeycomb stays still): holes left by words that went away (a fusion, a split,
-    /// an Undo) are filled from the inside out. In order of distance to `core`, a word
-    /// hops into a free spot of a nearby row that is clearly closer to `core` (by `minGain`,
-    /// within `maxHop`), and the spot it leaves is there for the next one. Words with no hole
-    /// nearby never move, so the structure stays compact without a global reshuffle.
+    /// Gentle gravity toward `core` (the BubbleKey): the honeycomb closes around it after holes
+    /// open (a fusion, a split, an Undo), from the inside out. In order of distance to `core`, a
+    /// word hops into a free spot of a nearby row that is clearly closer to `core` (by `minGain`,
+    /// within `maxHop`), and the spot it leaves is there for the next one. Short hops in a cascade:
+    /// near the BubbleKey of a full honeycomb almost nothing moves; when the BubbleKey ends up at
+    /// the edge of the structure, words come round it a hop at a time instead of crossing over.
     static let minGain: CGFloat = 30
-    static let maxHop: CGFloat = 220
+    static let maxHop: CGFloat = 260
 
     static func compact(cells: [UUID: CGPoint], sizes: [UUID: CGSize], grid: Grid, toward core: CGPoint,
                         fixed: UUID?, bounds: CGRect) -> [UUID: CGPoint] {
         var cells = cells
-        for _ in 0..<4 {
+        for _ in 0..<6 {
             var moved = false
             let order = cells.keys.filter { $0 != fixed && sizes[$0] != nil }.sorted {
                 (hypot(cells[$0]!.x - core.x, cells[$0]!.y - core.y), $0.uuidString) < (hypot(cells[$1]!.x - core.x, cells[$1]!.y - core.y), $1.uuidString)
