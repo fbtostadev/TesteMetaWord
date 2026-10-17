@@ -16,7 +16,7 @@ Veja os comandos e a estrutura em [Git no LAB](docs/GIT.md).
 
 Ao abrir, as palavras brotam do centro; **querer** (a palavra com mais combinações) é o centro óptico, cercado pela zona interna. Arraste **ir** sobre **querer** até armar (realce branco e pulso) e solte: as duas convergem, **Quero ir** nasce no ponto de encontro, **agora** e **depois** brotam dele, e **Quero ir** migra para o centro. Palavras que combinam com o foco ficam na zona interna; as que só combinam entre si, na média; as sem combinação, na externa. Durante o gesto a composição fica parada; ela se reorganiza depois.
 
-Também é possível tocar querer → ir → um dos dois. Tocar no fundo cancela. `<` desfaz, dividindo o resultado; pressionar o resultado da última fusão por 0,6 s também desfaz. O botão de ajustes abre a calibração da distância de aproximação.
+Também é possível tocar querer → ir → um dos dois. Tocar no fundo cancela. `<` desfaz, dividindo o resultado; pressionar o resultado da última fusão por 0,6 s também desfaz: durante a pressão a bolha treme cada vez mais e um som tremular cresce, até estourar com um estalo no instante da divisão (o iPad não tem háptico para o dedo; o som faz esse papel). O botão de ajustes abre a calibração da distância de aproximação.
 
 Estado e parâmetros vivem apenas na sessão. Sem SwiftData, voz ou serviços remotos.
 
@@ -29,6 +29,7 @@ Estado e parâmetros vivem apenas na sessão. Sem SwiftData, voz ou serviços re
 - `TesteMetaWord/Physics.swift`: física pura (repulsão, slots por zona, nascimento, órbita) com as constantes nomeadas.
 - `TesteMetaWord/ContentView.swift`: canvas, `TimelineView` como relógio da física, atmosferas, gestos e animações.
 - `TesteMetaWord/ChipView.swift`: cápsula de vidro, estado armado e pulso.
+- `TesteMetaWord/SplitTension.swift`: tensão do long press (curva do tremor, síntese do som tremular e do estouro, reprodução).
 - `scripts/capture-atmosphere.py`: testes e capturas da atmosfera, incluindo o arrasto mantido em estado armado.
 
 ## Build e testes
