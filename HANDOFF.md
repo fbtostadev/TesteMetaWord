@@ -81,7 +81,7 @@ Worktree `TesteMetaWord-wt-insercao-posicional`, a partir de `exp/gramatica-proc
 - **Foco no campo da BubbleKey (pedido do autor, 17/10):** com a palavra arrastada ao alcance, a BubbleKey cresce até 1,06× e as vizinhas se afastam (18 pt + o crescimento na direção delas, até 220 pt da superfície; `Physics.makeWay`, teste `wordsAroundTheBubbleKeyStepAsideAwayFromIt`). Suaviza a intenção “a composição fica parada durante o gesto” (ONBOARDING 1.1): o afastamento é só visual, sem mover corpos nem vagas, e se desfaz ao sair. Também afasta as vizinhas do vidro da cápsula alargada. Aprovado à mão pelo autor no simulador.
 - **Motor:** `Lexicon` ganhou `phrase` (palavras do foco) e `insertions` (resultado de cada palavra em cada fresta); a zona passou a ser a força da melhor fresta. Pares sem a BubbleKey continuam com `fuse`.
 - **Requisito de hitbox:** molduras reais do layout de texto, divisão sem zonas mortas na altura inteira, mínimo de 44 pt (tomado das vizinhas; nas pontas, para fora da cápsula), histerese da fresta, com testes de lógica; os alvos agora servem para pegar a palavra a retirar. Interpretei “para fora da cápsula, alvo mínimo de 44 pt” como o alvo de cada palavra ter ao menos 44 pt; confirmar com o autor.
-- **Verificação:** build aprovado; 78 Swift Testing (17 novos em `GrammarTests`, `InsertionTests`, `PhraseLayoutTests`) e o percurso de interface aprovados no simulador iPad Pro 13-inch (M5). **Conferido à mão pelo autor no simulador (17/10):** abertura da fresta, crescimento da BubbleKey e afastamento das vizinhas, e a prioridade sobre a sacudida, “funcionou bem”. **Ainda não conferido:** VoiceOver e setas; nada no iPad físico.
+- **Verificação:** build aprovado; 78 Swift Testing (17 novos em `GrammarTests`, `InsertionTests`, `PhraseLayoutTests`) e o percurso de interface aprovados no simulador iPad Pro 13-inch (M5). **Conferido à mão pelo autor no simulador (17/10):** abertura da fresta, crescimento da BubbleKey e afastamento das vizinhas, e a prioridade sobre a sacudida, “funcionou bem”. **Ainda não conferido:** nada no iPad físico. VoiceOver e setas: teste dispensado pelo autor (17/10).
 - **Próximo:** ver o experimento de remoção, abaixo.
 - **Em aberto:** se pinça e toque devem também apontar fresta; texto de frases fora da ordem com fonoaudiólogos.
 
@@ -96,7 +96,7 @@ Worktree `TesteMetaWord-wt-remocao`, a partir de `main` em `6492d3c`. Ainda **n�
 - **Long press depois da retirada** desfaz a edição (último ato que produziu a BubbleKey), em vez de dividir a fusão original; isso muda o que “dividir” significa numa BubbleKey editada, a rever.
 - **Acessibilidade:** ação “Retirar <palavra>” em cada palavra da frase (VoiceOver), alternativa sem arrastar; depois a palavra segue o toque A → B com setas.
 - **Limites:** frase que quebra linha não tem palavras medidas, então não cede palavra; dois dedos não retiram; não há alternativa por toque simples sem VoiceOver; a sacudida da palavra retirada segue as regras de sempre.
-- **Verificação:** build aprovado, 87 Swift Testing (9 novos em `RemovalTests`) e o percurso de interface estendido (puxar “ir” de “Quero ir”, recolocá-la à direita, dois Undos, long press), aprovados no simulador iPad Pro 13-inch (M5). **Não conferido à mão:** a sensação do limiar de 0,2 s, a convivência com o arrasto da BubbleKey inteira e com o long press, a ação do VoiceOver, o idle da palavra retirada; nada no iPad físico.
+- **Verificação:** build aprovado, 87 Swift Testing (9 novos em `RemovalTests`) e o percurso de interface estendido (puxar “ir” de “Quero ir”, recolocá-la à direita, dois Undos, long press), aprovados no simulador iPad Pro 13-inch (M5). **Não conferido à mão:** a sensação do limiar de 0,2 s, a convivência com o arrasto da BubbleKey inteira e com o long press, o idle da palavra retirada; nada no iPad físico. A ação “Retirar …” do VoiceOver não será testada (dispensado pelo autor).
 
 ## Experimento: escala na passagem (`exp/remocao`)
 
@@ -111,7 +111,7 @@ Feito sobre a remoção, na mesma branch. Regras em `SPEC.md` (“Sons de fundo�
 
 ## Pendências
 
-- Avaliação manual da sensação do gesto e da física, do idle em uso de C.A., da membrana, do long press, do VoiceOver, do desempenho; iPad físico.
+- Avaliação manual da sensação do gesto e da física, do idle em uso de C.A., da membrana, do long press, do desempenho; iPad físico. Testes de VoiceOver dispensados pelo autor (17/10): o recurso fica implementado, sem validação.
 - Fora desta iteração:
   - tint do vidro;
   - hierarquia visual da frase;
