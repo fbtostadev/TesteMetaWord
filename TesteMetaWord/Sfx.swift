@@ -1,9 +1,10 @@
 import AVFoundation
 import os
 
-/// Interaction sounds, synthesized, meant to stay in the background: only rare moments that change
-/// something (fusion, split, rejection) make a sound, each a single soft low note a few dozen
-/// milliseconds long. Frequent gestures (touch, approach) stay silent; their feedback is visual.
+/// Interaction sounds, synthesized, meant to stay in the background: only moments that change
+/// something (fusion, split, rejection) and the passage over the BubbleKey's gaps make a sound,
+/// each a soft low note a few dozen milliseconds long. Touching and approaching stay silent;
+/// their feedback is visual, and nothing sounds continuously.
 enum SfxCue: CaseIterable {
     case fusion, split, error
 
@@ -56,6 +57,27 @@ enum SfxSynth {
         }
     }
 
+    /// Quieter than the cues: a passing note is felt more than heard, with barely a hint of bell.
+    private static let hush: [(ratio: Double, gain: Double, decay: Double)] = [(1, 1, 1), (2.756, 0.1, 0.3)]
+
+    /// One soft note of `scale` as the dragged word passes over a gap of the BubbleKey: gap
+    /// `degree` plays degree `degree`, so sweeping across the phrase runs up the scale.
+    static func pass(_ scale: SfxScale, degree: Int) -> [Float] {
+        let hz = scale.frequency(degree: degree)
+        return render(0.2, [Note(start: 0, from: hz * 1.015, to: hz, glide: 0.02, decay: 0.04, gain: 0.014, attack: 0.01, partials: hush)])
+    }
+
+    /// The word settling into the BubbleKey: the root of `scale` and its fifth (or its nearest
+    /// degree), the second a breath later, ringing a little longer than a passing note.
+    static func snap(_ scale: SfxScale) -> [Float] {
+        let fifth = scale.steps.min { abs($0 - 7) < abs($1 - 7) } ?? 7
+        let top = SfxScale.root * pow(2, Double(fifth) / 12)
+        return render(0.36, [
+            Note(start: 0, from: SfxScale.root * 1.02, to: SfxScale.root, glide: 0.04, decay: 0.07, gain: 0.016, attack: 0.01, partials: hush),
+            Note(start: 0.045, from: top, to: top, glide: 0.01, decay: 0.06, gain: 0.011, attack: 0.01, partials: hush),
+        ])
+    }
+
     private static func render(_ duration: Double, _ notes: [Note]) -> [Float] {
         let count = Int(duration * sampleRate)
         var out = [Double](repeating: 0, count: count)
@@ -82,25 +104,108 @@ enum SfxSynth {
     }
 }
 
+/// A scale for the passage over the BubbleKey. One is drawn at random for each drag, so the same
+/// gesture does not always sound the same.
+struct SfxScale: Hashable, Sendable {
+    let name: String
+    /// Semitones above the root, ascending, inside one octave.
+    let steps: [Int]
+
+    static let root = SfxSynth.d4
+    static let presets = [
+        SfxScale(name: "pentatônica maior", steps: [0, 2, 4, 7, 9]),
+        SfxScale(name: "pentatônica menor", steps: [0, 3, 5, 7, 10]),
+        SfxScale(name: "lídia", steps: [0, 2, 4, 6, 7, 9, 11]),
+        SfxScale(name: "dórica", steps: [0, 2, 3, 5, 7, 9, 10]),
+        SfxScale(name: "tons inteiros", steps: [0, 2, 4, 6, 8, 10]),
+    ]
+
+    /// The most degrees a phrase can climb: two octaves of the scale would leave the warm register.
+    var topDegree: Int { 2 * steps.count - 1 }
+
+    /// Degree 0 is the root; past the last step the scale continues an octave higher.
+    func frequency(degree: Int) -> Double {
+        let degree = min(max(0, degree), topDegree)
+        return Self.root * pow(2, Double(steps[degree % steps.count] + 12 * (degree / steps.count)) / 12)
+    }
+
+    /// A preset other than `current`, chosen by `pick` (a random index below the count it is given).
+    static func next(after current: SfxScale?, pick: (Int) -> Int = { Int.random(in: 0..<$0) }) -> SfxScale {
+        let others = presets.filter { $0 != current }
+        return others[pick(others.count) % others.count]
+    }
+}
+
 @MainActor final class Sfx {
     private let engine = AVAudioEngine()
     private let format = AVAudioFormat(standardFormatWithSampleRate: SfxSynth.sampleRate, channels: 1)!
     private var players: [SfxCue: AVAudioPlayerNode] = [:]
     private var buffers: [SfxCue: AVAudioPCMBuffer] = [:]
     private var lastPlayed: [SfxCue: TimeInterval] = [:]
+    /// Notes of a sweep can overlap, so they take turns on a few players.
+    private var notePlayers: [AVAudioPlayerNode] = []
+    private var nextNotePlayer = 0
+    private var noteBuffers: [String: AVAudioPCMBuffer] = [:]
+    private var lastPass = -TimeInterval.infinity
     private var loaded = false
+    /// The scale of the current drag; `rollScale` draws a new one.
+    private(set) var scale = SfxScale.next(after: nil)
+
+    /// Minimum gap between two notes of a sweep.
+    private static let passCooldown: TimeInterval = 0.08
 
     func play(_ cue: SfxCue) {
         let now = ProcessInfo.processInfo.systemUptime
         guard now - (lastPlayed[cue] ?? -.infinity) >= cue.cooldown, load(), let player = players[cue],
               let buffer = buffers[cue] else { return }
         lastPlayed[cue] = now
-        if !engine.isRunning { try? engine.start() }
-        guard engine.isRunning else { return }
+        guard startEngine() else { return }
         player.stop()
         player.volume = cue.volume
         player.scheduleBuffer(buffer)
         player.play()
+    }
+
+    /// A new drag starts: draw its scale, never the one just heard.
+    func rollScale() {
+        scale = SfxScale.next(after: scale)
+    }
+
+    /// The dragged word passes over gap `degree` of the BubbleKey.
+    func pass(degree: Int) {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastPass >= Self.passCooldown else { return }
+        lastPass = now
+        playNote("\(scale.name)-\(min(max(0, degree), scale.topDegree))") { SfxSynth.pass(scale, degree: degree) }
+    }
+
+    /// The word settles into the BubbleKey.
+    func snap() {
+        playNote("\(scale.name)-snap") { SfxSynth.snap(scale) }
+    }
+
+    private func playNote(_ key: String, samples: () -> [Float]) {
+        guard load(), startEngine() else { return }
+        if noteBuffers[key] == nil { noteBuffers[key] = makeBuffer(samples()) }
+        guard let buffer = noteBuffers[key] else { return }
+        let player = notePlayers[nextNotePlayer]
+        nextNotePlayer = (nextNotePlayer + 1) % notePlayers.count
+        player.stop()
+        player.scheduleBuffer(buffer)
+        player.play()
+    }
+
+    private func startEngine() -> Bool {
+        if !engine.isRunning { try? engine.start() }
+        return engine.isRunning
+    }
+
+    private func makeBuffer(_ samples: [Float]) -> AVAudioPCMBuffer? {
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)),
+              let channel = buffer.floatChannelData?[0] else { return nil }
+        buffer.frameLength = AVAudioFrameCount(samples.count)
+        samples.withUnsafeBufferPointer { channel.update(from: $0.baseAddress!, count: samples.count) }
+        return buffer
     }
 
     private func load() -> Bool {
@@ -108,93 +213,19 @@ enum SfxSynth {
         loaded = true
         try? AVAudioSession.sharedInstance().setCategory(.ambient)
         for cue in SfxCue.allCases {
-            let samples = SfxSynth.samples(cue)
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)),
-                  let channel = buffer.floatChannelData?[0] else { continue }
-            buffer.frameLength = AVAudioFrameCount(samples.count)
-            samples.withUnsafeBufferPointer { channel.update(from: $0.baseAddress!, count: samples.count) }
+            guard let buffer = makeBuffer(SfxSynth.samples(cue)) else { continue }
             let player = AVAudioPlayerNode()
             engine.attach(player)
             engine.connect(player, to: engine.mainMixerNode, format: format)
             players[cue] = player
             buffers[cue] = buffer
         }
+        for _ in 0..<4 {
+            let player = AVAudioPlayerNode()
+            engine.attach(player)
+            engine.connect(player, to: engine.mainMixerNode, format: format)
+            notePlayers.append(player)
+        }
         return !buffers.isEmpty
-    }
-}
-
-/// A continuous background tone tied to the overlap depth of an approaching pair: silent apart,
-/// it rises from D4 toward the fifth A4 as the surfaces sink into each other, and gets slightly
-/// louder, never above background level. Parameters are smoothed so it never clicks.
-enum DepthTone {
-    static let maxLevel = 0.035
-    static let lowHz = 293.66, highHz = 440.0
-
-    static func frequency(depth: Double) -> Double {
-        lowHz * pow(highHz / lowHz, min(1, max(0, depth)))
-    }
-
-    static func level(depth: Double) -> Double {
-        maxLevel * pow(min(1, max(0, depth)), 1.5)
-    }
-}
-
-/// Real-time voice behind `DepthTone`. The audio thread reads `target`; the main actor writes it.
-final class DepthVoice: @unchecked Sendable {
-    private let target = OSAllocatedUnfairLock(initialState: (hz: DepthTone.lowHz, level: 0.0))
-    private var phase = 0.0, hz = DepthTone.lowHz, level = 0.0
-    private let rate: Double
-
-    init(sampleRate: Double) { rate = sampleRate }
-
-    func set(depth: Double) {
-        target.withLock { $0 = (DepthTone.frequency(depth: depth), DepthTone.level(depth: depth)) }
-    }
-
-    /// Built here, not in the main-actor `DepthSound`: a closure created in a main-actor method
-    /// inherits that isolation, and Swift would assert on the main queue from the audio thread.
-    nonisolated func makeNode(format: AVAudioFormat) -> AVAudioSourceNode {
-        AVAudioSourceNode(format: format) { [self] _, _, frames, buffers in
-            let list = UnsafeMutableAudioBufferListPointer(buffers)
-            guard let data = list.first?.mData?.assumingMemoryBound(to: Float.self) else { return noErr }
-            render(data, frames: Int(frames))
-            return noErr
-        }
-    }
-
-    func render(_ out: UnsafeMutablePointer<Float>, frames: Int) {
-        let goal = target.withLock { $0 }
-        let step = 1 - exp(-1 / (0.03 * rate)) // ~30 ms smoothing
-        for index in 0..<frames {
-            hz += (goal.hz - hz) * step
-            level += (goal.level - level) * step
-            phase += 2 * .pi * hz / rate
-            if phase > 2 * .pi { phase -= 2 * .pi }
-            out[index] = Float(level * (sin(phase) + 0.25 * sin(2 * phase)) / 1.25)
-        }
-    }
-}
-
-@MainActor final class DepthSound {
-    private let engine = AVAudioEngine()
-    private let voice = DepthVoice(sampleRate: SfxSynth.sampleRate)
-    private var attached = false
-
-    func update(depth: Double) {
-        if depth > 0, !start() { return }
-        voice.set(depth: depth)
-    }
-
-    private func start() -> Bool {
-        if !attached {
-            attached = true
-            try? AVAudioSession.sharedInstance().setCategory(.ambient)
-            let format = AVAudioFormat(standardFormatWithSampleRate: SfxSynth.sampleRate, channels: 1)!
-            let node = voice.makeNode(format: format)
-            engine.attach(node)
-            engine.connect(node, to: engine.mainMixerNode, format: format)
-        }
-        if !engine.isRunning { try? engine.start() }
-        return engine.isRunning
     }
 }

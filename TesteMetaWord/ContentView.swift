@@ -35,7 +35,6 @@ struct ContentView: View {
     @ScaledMetric(relativeTo: .title3) private var fontSize = 20.0
     @State private var splitSound = SplitSound()
     @State private var sfx = Sfx()
-    @State private var depthSound = DepthSound()
     /// The master bubble under a long press that will split it, and when the press began.
     @State private var tension: (id: UUID, start: TimeInterval)?
     @GestureState private var pressing: UUID?
@@ -218,7 +217,10 @@ struct ContentView: View {
             if old.isEmpty, !new.isEmpty { touchDown = Date().timeIntervalSinceReferenceDate }
             trackPinch(space)
         }
-        .onChange(of: composition.depth) { _, depth in depthSound.update(depth: depth) }
+        // The passage over the BubbleKey's gaps plays the drag's scale, one degree per gap.
+        .onChange(of: composition.insertion) { old, new in
+            if composition.dragging != nil, let new, new != old { sfx.pass(degree: new) }
+        }
         .onChange(of: composition.rejecting) { _, rejecting in
             if rejecting { sfx.play(.error) }
         }
@@ -602,8 +604,11 @@ struct ContentView: View {
     /// place and the result is born there.
     private func confirmCandidate(_ pair: MergePair, _ space: Space) {
         let into = insertionPoint(pair, space)
+        // A word settling into the BubbleKey snaps with its scale instead of the fusion note.
+        let sound: SfxCue? = into == nil ? .fusion : nil
         guard !reduceMotion, let a = bodies[pair.source]?.position, let b = bodies[pair.target]?.position else {
-            apply(space, sound: .fusion, origin: into?.focus) { composition.tap(pair.source) }
+            if into != nil { sfx.snap() }
+            apply(space, sound: sound, origin: into?.focus) { composition.tap(pair.source) }
             return
         }
         withAnimation(.easeIn(duration: 0.2)) {
@@ -620,7 +625,8 @@ struct ContentView: View {
         fusionTask = Task { @MainActor in
             do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
             guard composition.candidate == pair else { cancel(space); return }
-            apply(space, sound: .fusion, origin: into?.focus) { composition.tap(pair.source) }
+            if into != nil { sfx.snap() }
+            apply(space, sound: sound, origin: into?.focus) { composition.tap(pair.source) }
             fusingPair = nil
             fusionTask = nil
         }
@@ -668,12 +674,14 @@ struct ContentView: View {
                     lifted = word
                     dragOrigin = bodies[word]?.position
                     shake = ShakeDetector()
+                    sfx.rollScale()
                     composition.beginDrag(word)
                 }
                 let handled = lifted ?? id
                 if composition.dragging != handled {
                     dragOrigin = rendered(chip, space, time: now)
                     shake = ShakeDetector()
+                    sfx.rollScale()
                     composition.beginDrag(handled)
                 }
                 moveDragged(handled, translation: value.translation, space)
