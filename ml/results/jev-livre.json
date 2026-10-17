@@ -1,0 +1,40 @@
+{
+  "model": [
+    "jev-1.13.0"
+  ],
+  "variant": "livre",
+  "split": "test",
+  "tuned_on": "valid",
+  "examples": 400,
+  "fusao": {
+    "n": 300,
+    "threshold": 0.45,
+    "valid_invalid_right": 0.847,
+    "valid_pairs_right": 0.953,
+    "invalid_pairs_rejected": 0.47,
+    "brier": 0.1776
+  },
+  "fusao_at_0.5": {
+    "n": 300,
+    "threshold": 0.5,
+    "valid_invalid_right": 0.82,
+    "valid_pairs_right": 0.876,
+    "invalid_pairs_rejected": 0.621,
+    "brier": 0.1776
+  },
+  "atmosfera": {
+    "n": 100,
+    "threshold": 0.75,
+    "words_in_right_zone": 0.567,
+    "exact": 0.01
+  },
+  "atmosfera_at_0.5": {
+    "n": 100,
+    "threshold": 0.5,
+    "words_in_right_zone": 0.4,
+    "exact": 0.02
+  },
+  "latency_ms_per_request": 365,
+  "input_tokens": 209265,
+  "cost_usd": 0.0088
+}

@@ -32,15 +32,16 @@ cd ml
 pip install -r requirements.txt            # já satisfeito nesta máquina
 python3 build_dataset.py                   # data/{train,valid,test,parity}.jsonl
 python3 evaluate.py --split test --limit 200 --name base         # modelo base
-python3 -m mlx_lm lora -c lora.yaml        # treino → adapters/qwen3-0.6b
-python3 evaluate.py --split test --adapter adapters/qwen3-0.6b --name lora
-python3 evaluate.py --split parity --adapter adapters/qwen3-0.6b --name lora-parity
+python3 -m mlx_lm lora -c lora.yaml        # treino → adapters/qwen3-0.6b-r2
+python3 evaluate.py --split test --adapter adapters/qwen3-0.6b-r2 --name lora-r2-test
+python3 evaluate.py --split parity --adapter adapters/qwen3-0.6b-r2 --name lora-r2-parity
+python3 evaluate_jev.py --variant regras --tune-split valid --name jev-regras   # requer TYPESAFE_API_KEY em ../.env
 ```
 
 Para empacotar para o iPad, quando passar na avaliação:
 
 ```sh
-python3 -m mlx_lm fuse --model Qwen/Qwen3-0.6B --adapter-path adapters/qwen3-0.6b --save-path models/composer
+python3 -m mlx_lm fuse --model Qwen/Qwen3-0.6B --adapter-path adapters/qwen3-0.6b-r2 --save-path models/composer
 python3 -m mlx_lm convert --hf-path models/composer --mlx-path models/composer-4bit -q --q-bits 4
 ```
 
@@ -93,5 +94,41 @@ Val loss: 4,26 → 0,041. O treino levou cerca de 15 min no M4.
 - reduzir os negativos para cerca de 25%;
 - treinar de 2 a 3 épocas;
 - reavaliar.
+
+### Rodada 2, 16/10/2026: núcleo palavra + palavra, 1.900 iterações × 8 (≈ 2 épocas)
+
+Dataset novo:
+- todas as fusões palavra + palavra, sobreamostradas 6×;
+- os 11 casos de paridade entram no treino;
+- 25% de negativos.
+
+Val loss: 4,05 → 0,034, com mínimo de 0,027 na iteração 1750. O treino levou cerca de 1 h no M4.
+
+### Comparativo: Jev × Qwen r1 × Qwen r2 (teste novo, 400 exemplos)
+
+O Jev (TypeSafe, `evaluate_jev.py`) só decide sim/não por par, com limiares calibrados em `valid`. As zonas dele são calculadas em código a partir dessas decisões. Ele não gera texto.
+
+| Métrica | Jev regras | Jev livre | Qwen r1 | Qwen r2 |
+| --- | --- | --- | --- | --- |
+| Válido/inválido certo | 90,3% | 84,7% | 68,0% | **97,0%** |
+| Fusões válidas aceitas | 94,4% | 95,3% | 61,1% | **100%** |
+| Pares inválidos rejeitados | 75,8% | 47,0% | **92,4%** | 86,4% |
+| Resultado e sugestões exatos | — | — | 67,7% | **97,0%** |
+| Palavras na zona certa | 68,3% | 56,7% | 74,5% | **80,7%** |
+| Atmosfera exata | 32% | 1% | 39% | **53%** |
+| Paridade com o app (11 regras) | — | — | 27,3% | 90,9%¹ |
+| Latência por chamada | ~370 ms (remoto) | ~370 ms | 646 ms² | 751 ms² |
+| Custo | ~US$ 0,012 / 400 | similar | 0 | 0 |
+
+¹ Na rodada 2 a paridade entrou no treino, então é checagem de memorização, não generalização. A única falha é justamente o passo básico: “eu” + “querer” → “Eu quero ver” (esperado “Eu quero”, com sugestões ir/brincar).
+² Mac M4, bf16, sem quantização, um exemplo por vez. A variação entre execuções é grande (a rodada 1 mediu 439 ms antes); medir de novo no iPad.
+
+**Diagnóstico**
+- A rodada 2 resolveu o viés para `null`: todas as fusões válidas saem certas, com sugestões exatas.
+- A rejeição de inválidos caiu de 92% para 86% com a redução dos negativos para 25%. O próximo dataset deve incluir negativos difíceis (ver `future-HANDOFF.md`, 4.4).
+- A **atmosfera** continua o ponto fraco. Gerar as zonas como JSON faz o modelo repetir palavras, inventar outras (“nós” no lugar de “você”) e omitir algumas. Isso apoia a proposta do `future-HANDOFF.md` (camada C): calcular as zonas a partir de um score de validade por par, em vez de gerar listas.
+- O Jev é útil como juiz de validade offline (aceita bem os pares válidos, mas rejeita mal os inválidos). Ele não gera fusões e, por ser remoto e por token, não entra no app.
+
+**Próximo passo:** integrar o adaptador r2 como `LocalModelEngine` só para fusões, mantendo as zonas pelo `RuleEngine`. Medir a latência no iPad físico (Fase 0 do `future-HANDOFF.md`).
 
 O app continua usando o `RuleEngine`.

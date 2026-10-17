@@ -1,0 +1,36 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "adapter": "adapters/qwen3-0.6b-r2",
+  "split": "parity",
+  "examples": 11,
+  "fusao": {
+    "n": 11,
+    "json": 1.0,
+    "result_exact": 0.909,
+    "with_suggestions": 0.909,
+    "valid_invalid_right": 1.0,
+    "valid_pairs_right": 0.909,
+    "invalid_pairs_rejected": null
+  },
+  "atmosfera": {
+    "n": 0,
+    "json": null,
+    "words_in_right_zone": null,
+    "exact": null
+  },
+  "latency_ms_per_call": 960,
+  "tokens_per_second": 20.2,
+  "failures": [
+    {
+      "prompt": "fusao: \"eu\" + \"querer\"",
+      "expected": {
+        "resultado": "Eu quero",
+        "sugestoes": [
+          "ir",
+          "brincar"
+        ]
+      },
+      "got": "{\"resultado\":\"Eu quero ver\",\"sugestoes\":[\"TV\",\"livro\"]}"
+    }
+  ]
+}
