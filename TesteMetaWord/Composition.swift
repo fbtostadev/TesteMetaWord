@@ -342,6 +342,36 @@ struct Calibration: Equatable {
         return true
     }
 
+    /// What taking a word out of the BubbleKey left on the canvas: the word as a bubble of its
+    /// own, or nil when it is already shown (its twin stays) or only an "e" went away.
+    struct Removed: Equatable {
+        let word: UUID?
+    }
+
+    /// The BubbleKey gives up word `index` of its phrase. It keeps its identity, its place and
+    /// the rest of the phrase, one fusion lighter; the word becomes a bubble of its own, born
+    /// where it stood. An act of its own: Undo puts the word back, and the suggestions stay.
+    /// Nil when the BubbleKey has no phrase of two words or more to take it from.
+    func removeWord(at index: Int) -> Removed? {
+        guard let focus, focusPhrase != nil, lexicon.removals.indices.contains(index),
+              let removal = lexicon.removals[index],
+              let position = chips.firstIndex(where: { $0.id == focus }) else { return nil }
+        let chip = chips[position]
+        var act = Act(chips: chips, result: chip.id, origins: [chip])
+        chips[position] = WordChip(removal.rest, fusionCount: max(0, chip.fusionCount - 1), glassID: chip.glassID, phase: chip.phase, id: chip.id)
+        let word = removal.word.flatMap { text in
+            chips.contains { $0.text == text } ? nil : WordChip(text, phase: chip.phase + Physics.familyLag)
+        }
+        if let word {
+            chips.append(word)
+            act.budded.insert(word.id)
+        }
+        history.append(act)
+        born = act.budded
+        cancel()
+        return Removed(word: word?.id)
+    }
+
     /// Passive fusion: each duplicate dissolves into its twin, which keeps the larger fusion count.
     /// Part of the act that created the duplicate, so one Undo reverts both.
     func absorbDuplicates() {

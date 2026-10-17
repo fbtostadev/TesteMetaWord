@@ -21,6 +21,8 @@ struct Grammar: Sendable {
         let text: String
         let slot: Slot?
         let lemma: String
+        /// The coordinating "e" that the grammar writes between twin slots.
+        var isAnd: Bool { slot == nil && lemma == "e" }
     }
 
     private let spec: Spec
@@ -149,6 +151,28 @@ struct Grammar: Sendable {
         let natural = slots == slots.sorted { $0.rawValue < $1.rawValue }
         let strength = min(3, (isStrong(exact) ? 1 : 2) + (natural ? 0 : 1))
         return Vocabulary.Combination(result: render(units), suggestions: suggestions(for: exact), strength: strength)
+    }
+
+    /// `phrase` without its word `index`, written again by the same rules (the subject that is left
+    /// conjugates the modal, the interjection keeps its commas), and the dictionary form of the
+    /// word taken out: nil for the coordinating "e", which only goes away. An "e" beside the word
+    /// goes with it, since it no longer joins anything. Nil for a phrase of one word or an
+    /// `index` outside it.
+    func remove(_ index: Int, from phrase: String) -> Vocabulary.Removal? {
+        var left = units(of: phrase)
+        guard left.count > 1, left.indices.contains(index) else { return nil }
+        let taken = left.remove(at: index)
+        if !taken.isAnd {
+            if index > 0, left[index - 1].isAnd {
+                left.remove(at: index - 1)
+            } else if index < left.count, left[index].isAnd {
+                left.remove(at: index)
+            }
+        }
+        while left.first?.isAnd == true { left.removeFirst() }
+        while left.last?.isAnd == true { left.removeLast() }
+        guard !left.isEmpty else { return nil }
+        return Vocabulary.Removal(rest: render(left), word: taken.isAnd ? nil : taken.lemma)
     }
 
     func fuse(_ a: String, _ b: String) -> Vocabulary.Combination? {

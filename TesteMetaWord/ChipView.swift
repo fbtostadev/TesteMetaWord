@@ -18,6 +18,8 @@ struct ChipView: View {
     let undo: () -> Void
     /// Buds related words, as shaking the bubble does.
     let derive: () -> Void
+    /// Takes word `index` out of the BubbleKey's phrase (the alternative to pulling it out).
+    var remove: ((Int) -> Void)?
     /// The BubbleKey draws its phrase word by word, so a gap can open between two words.
     var phrase: (words: [String], layout: PhraseLayout)?
     var opening: Opening?
@@ -63,6 +65,11 @@ struct ChipView: View {
         .accessibilityActions {
             Button("Derivar palavras relacionadas", action: derive)
             if canUndo { Button("Desfazer última combinação", action: undo) }
+            if let phrase, phrase.words.count > 1, let remove {
+                ForEach(phrase.words.indices, id: \.self) { i in
+                    Button("Retirar \(phrase.words[i].trimmingCharacters(in: [","]))") { remove(i) }
+                }
+            }
         }
         .accessibilityIdentifier("chip-\(chip.text)")
     }

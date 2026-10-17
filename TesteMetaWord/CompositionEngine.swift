@@ -14,6 +14,9 @@ struct Lexicon: Equatable {
     var phrase: [String] = []
     /// For every other word, the fusion of it entering the focus at each gap (0 … `phrase.count`).
     var insertions: [String: [Vocabulary.Combination]] = [:]
+    /// For each word of `phrase`: the phrase without it and the word that comes out; empty when
+    /// the phrase is a single word.
+    var removals: [Vocabulary.Removal?] = []
 }
 
 /// Source of combinations, suggestions, focus and zones, asked after every change of the word
@@ -50,6 +53,7 @@ struct RuleEngine: CompositionEngine {
         let zones = Dictionary(others.map { word in
             (word, insertions[word]?.map(\.strength).min() ?? Vocabulary.zone(of: word, focus: center))
         }) { first, _ in first }
-        return Lexicon(fusions: fusions, focus: center, zones: zones, related: related, phrase: phrase, insertions: insertions)
+        let removals = phrase.indices.map { Vocabulary.remove($0, from: center) }
+        return Lexicon(fusions: fusions, focus: center, zones: zones, related: related, phrase: phrase, insertions: insertions, removals: removals)
     }
 }

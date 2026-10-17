@@ -32,7 +32,7 @@ Estado e parâmetros vivem apenas na sessão. Sem SwiftData, voz ou serviços re
 - `TesteMetaWord/AtmosphereView.swift`: parâmetros do shader da atmosfera e sua interpolação.
 - `TesteMetaWord/Atmosphere.metal`: faixas suaves, união luminosa das cápsulas e deformação localizada.
 - `TesteMetaWord/ChipView.swift`: cápsula de vidro, estado armado e pulso; a BubbleKey palavra por palavra, com a fresta aberta.
-- `TesteMetaWord/PhraseLayout.swift`: molduras das palavras pelo layout de texto, fresta sob o dedo (com histerese) e alvos de cada palavra.
+- `TesteMetaWord/PhraseLayout.swift`: molduras das palavras pelo layout de texto, fresta sob o dedo (com histerese) e alvos de cada palavra (a palavra que o dedo pega para retirá-la da frase).
 - `TesteMetaWord/TouchTracker.swift`: observador UIKit dos dedos na tela (posição e quantidade), sem consumir toques; base da pinça.
 - `TesteMetaWord/SplitTension.swift`: tensão do long press (curva do tremor, síntese do som tremular, reprodução).
 - `TesteMetaWord/Sfx.swift`: sons de fundo sintetizados (fusão, divisão, erro) e seu player.
