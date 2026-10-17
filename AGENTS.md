@@ -41,7 +41,7 @@ O núcleo do experimento é a relação entre movimento físico, fusão visual e
 ## Decisões em aberto para experimentos futuros
 
 - **Gestos e recuperação:** qual alternativa existe para quem não consegue arrastar ou usar dois dedos, além do toque A → B?
-- **Frase da BubbleKey:** a retirada de palavras depende de segurar 0,2 s antes de puxar (limiar a calibrar; sem alternativa por toque além da ação de acessibilidade “Retirar …”). Reordenar são dois atos (retirar, inserir), com dois Undos: um ato único é uma decisão aberta. Texto das fusões fraca e média e de frases fora da ordem natural, a revisar com fonoaudiólogos.
+- **Frase da BubbleKey:** a retirada de palavras exige segurar 0,2 s antes de puxar e reordenar são dois atos (retirar, inserir), com dois Undos; ambos confirmados pelo autor, o limiar ainda a sentir na mão. Sem alternativa por toque além da ação de acessibilidade “Retirar …”. Texto das fusões fraca e média e de frases fora da ordem natural, a revisar com fonoaudiólogos.
 - **Vocabulário:** quais palavras aparecem inicialmente e quais combinações são válidas? As sugestões seguem oposição estrita ou alternativas contextuais contrastantes, como “agora/depois”? Sugestões por associação (n-gram, `NLEmbedding`)?
 - **Zona de sumiço:** qual é o diâmetro e como os chips desaparecem? Eles podem retornar? Como o Undo interage com essa zona?
 - **Persistência:** o que deve ser salvo entre sessões? Síntese de voz ainda não foi definida.
