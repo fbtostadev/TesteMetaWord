@@ -122,6 +122,12 @@ struct Calibration: Equatable {
         return resistance > 0 && !compatible(pinching.source, pinching.target)
     }
 
+    /// Strength of the known fusion of two chips (1 strong … 3 weak), if any.
+    func strength(_ a: UUID, _ b: UUID) -> Int? {
+        guard let first = chips.first(where: { $0.id == a }), let second = chips.first(where: { $0.id == b }) else { return nil }
+        return fusions[[first.text, second.text]]?.strength
+    }
+
     func compatible(_ a: UUID, _ b: UUID) -> Bool {
         guard let first = chips.first(where: { $0.id == a }), let second = chips.first(where: { $0.id == b }) else { return false }
         return first.text != second.text && fusions[[first.text, second.text]] != nil

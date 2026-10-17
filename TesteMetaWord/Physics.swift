@@ -2,9 +2,8 @@ import CoreGraphics
 import Foundation
 
 /// Pure 2D physics for the organic composition. Bodies are capsule centers in canvas points.
-/// The focus (optical center) is pulled to the canvas center; every other word is pulled to a
-/// slot on the ring of its atmosphere zone (see `targets`), and repulsion keeps cells from
-/// touching. The view freezes the physics during a gesture and adds the idle orbit on top.
+/// Each word is pulled to its cell in an organic honeycomb around the focus (see `layout`),
+/// computed once per change; repulsion keeps cells from touching on the way. The view freezes the physics during a gesture and adds the idle orbit on top.
 enum Physics {
     /// Surfaces closer than this merge into one glass shape (the GlassEffectContainer spacing).
     static let glassSpacing: CGFloat = 24
@@ -64,8 +63,8 @@ enum Physics {
         }.min { $0.distance < $1.distance }?.id
     }
 
-    /// Advances every body by `dt`. `zones` gives each non-focus word its atmosphere zone.
-    static func step(_ bodies: inout [UUID: Body], sizes: [UUID: CGSize], focus: UUID?, zones: [UUID: Int], center: CGPoint, bounds: CGRect, dt: CGFloat) {
+    /// Advances every body by `dt` toward its place in `targets` (see `layout`).
+    static func step(_ bodies: inout [UUID: Body], sizes: [UUID: CGSize], targets: [UUID: CGPoint], bounds: CGRect, dt: CGFloat) {
         let ids = Array(bodies.keys)
         var acceleration = Dictionary(uniqueKeysWithValues: ids.map { ($0, CGVector.zero) })
         for i in ids.indices {
@@ -80,7 +79,7 @@ enum Physics {
                 acceleration[b]! -= force
             }
         }
-        for (id, target) in targets(bodies, sizes: sizes, focus: focus, zones: zones, center: center) {
+        for (id, target) in targets where bodies[id] != nil {
             let p = bodies[id]!.position
             let r = bodies[id]!.ramp
             acceleration[id]! += CGVector(dx: target.x - p.x, dy: target.y - p.y) * (pull * r * r * (3 - 2 * r))
@@ -106,154 +105,54 @@ enum Physics {
         }
     }
 
-    /// Where each word wants to be. The focus goes to the canvas center. Occupied zones take
-    /// rings around the focus in order (see `zoneGap`). On a ring, words keep their current
-    /// angular order and are packed by the room they really take, at least `restGap` apart, with
-    /// the spare room shared evenly and the whole ring turned to move them as little as possible.
-    /// Words that do not fit (the narrowest first, so text-dense words stay central) overflow to the next ring, so a crowded zone or
-    /// a wide focus never pins words against each other. An outer ring also clears the words of
-    /// the inner ones: a word whose spot is taken slides along its ring to a free one, so rings
-    /// interleave (beside a wide focus words sit side by side, wider than the ring spacing).
-    static func targets(_ bodies: [UUID: Body], sizes: [UUID: CGSize], focus: UUID?, zones: [UUID: Int], center: CGPoint) -> [UUID: CGPoint] {
-        guard let focus, let core = bodies[focus]?.position, let coreSize = sizes[focus] else { return [:] }
+    /// Organic honeycomb around the focus, computed once per change of the composition (fusion,
+    /// split, shake, Undo, new zones, resize) rather than every frame, so every change settles
+    /// into the same pattern and only its density varies.
+    ///
+    /// The focus sits at `center`. Words lie in rows of capsules, `restGap` apart; odd rows split
+    /// at the center like offset brick courses, so neighbours nest as in a honeycomb. Zone by zone
+    /// (inner first) and widest first, each word takes the free spot nearest the center, leaning
+    /// toward a placed word it would make a full phrase with (`affinity`): complementary words
+    /// attract like opposite charges. The pattern never depends on where words are; of its four
+    /// mirror images, the one that moves the words least from `current` is used.
+    static func layout(sizes: [UUID: CGSize], focus: UUID?, zones: [UUID: Int], center: CGPoint,
+                       current: [UUID: CGPoint] = [:], affinity: (UUID, UUID) -> Bool = { _, _ in false }) -> [UUID: CGPoint] {
+        guard let focus, let focusSize = sizes[focus] else { return [:] }
+        let rowHeight = (sizes.values.map(\.height).max() ?? 56) + restGap
+        var rows: [Int: [ClosedRange<CGFloat>]] = [0: [(center.x - focusSize.width / 2)...(center.x + focusSize.width / 2)]]
         var targets = [focus: center]
-        var ring = Ring(core: core, coreSize: coreSize, sizes: sizes)
-        var overflow: [UUID] = []
-        var level = 0
-        for zone in Set(zones.values).sorted() {
-            let members = overflow + zones.keys.filter { zones[$0] == zone && bodies[$0] != nil && sizes[$0] != nil }
-            overflow = ring.lay(members, bodies: bodies, gap: restGap + CGFloat(level) * zoneSpacing, into: &targets)
-            level += 1
+        let words = zones.keys.filter { $0 != focus && sizes[$0] != nil }.sorted {
+            (zones[$0]!, -sizes[$0]!.width, $0.uuidString) < (zones[$1]!, -sizes[$1]!.width, $1.uuidString)
         }
-        while !overflow.isEmpty, level < 12 {
-            overflow = ring.lay(overflow, bodies: bodies, gap: restGap + CGFloat(level) * zoneSpacing, into: &targets)
-            level += 1
-        }
-        return targets
-    }
-
-    /// Slots on one ring around the focus, at a surface gap from it.
-    private struct Ring {
-        let core: CGPoint
-        let coreSize: CGSize
-        let sizes: [UUID: CGSize]
-        /// Words already laid on inner rings, which outer ones keep `restGap` away from.
-        var placed: [CGRect] = []
-
-        /// Lays `members` on the ring at `gap` and returns the ones that do not fit.
-        mutating func lay(_ members: [UUID], bodies: [UUID: Body], gap: CGFloat, into targets: inout [UUID: CGPoint]) -> [UUID] {
-            guard !members.isEmpty else { return [] }
-            func angle(_ id: UUID) -> CGFloat { atan2(bodies[id]!.position.y - core.y, bodies[id]!.position.x - core.x) }
-            var kept = members.sorted { angle($0) < angle($1) }
-            var overflow: [UUID] = []
-            // Move the narrowest out (ties by id, so the choice holds from frame to frame) until the
-            // rest fit: words dense with text stay closer to the focus.
-            while kept.count > 1, walk(kept, from: angle(kept[0]), share: 0, gap: gap).turn > 2 * .pi {
-                let narrowest = kept.min { (sizes[$0]!.width, $0.uuidString) < (sizes[$1]!.width, $1.uuidString) }!
-                kept.removeAll { $0 == narrowest }
-                overflow.append(narrowest)
-            }
-            // Plan from the first word, turn the plan toward where the words are, then plan again
-            // from that turned start so every gap is measured where the words will actually sit.
-            var start = angle(kept[0])
-            let offsets = zip(kept, plan(kept, from: start, gap: gap)).map { angle($0) - $1 }
-            start += atan2(offsets.map { sin($0) }.reduce(0, +), offsets.map { cos($0) }.reduce(0, +))
-            var laid: [CGRect] = []
-            for (id, a) in zip(kept, plan(kept, from: start, gap: gap)) {
-                targets[id] = point(sizes[id]!, a, gap: gap)
-                laid.append(rect(targets[id]!, sizes[id]!))
-            }
-            placed += laid
-            return overflow
-        }
-
-        /// Angles from `start`: each word right after the previous one plus a share of the spare
-        /// room. The share is the largest that still closes the ring, found by bisection, because
-        /// one angle is worth more room at the ends of a wide focus than along its sides.
-        private func plan(_ members: [UUID], from start: CGFloat, gap: CGFloat) -> [CGFloat] {
-            guard members.count > 1 else { return [start] }
-            var low: CGFloat = 0, high = 2 * .pi / CGFloat(members.count)
-            for _ in 0..<6 {
-                let mid = (low + high) / 2
-                if walk(members, from: start, share: mid, gap: gap).turn <= 2 * .pi { low = mid } else { high = mid }
-            }
-            return walk(members, from: start, share: low, gap: gap).angles
-        }
-
-        /// Lays the words one after another from `start`, each the smallest turn after the previous
-        /// one that keeps `restGap` between them, plus `share`; a word whose spot is taken by a word
-        /// of an inner ring slides along the ring to the next free spot, so rings interleave instead
-        /// of stacking in spokes. `turn` runs back to the first word: the ring closes when it is at
-        /// most a full turn.
-        private func walk(_ members: [UUID], from start: CGFloat, share: CGFloat, gap: CGFloat) -> (angles: [CGFloat], turn: CGFloat) {
-            let sized = members.map { sizes[$0]! }
-            let first = free(sized[0], from: start, gap: gap)
-            guard members.count > 1 else { return ([first], 0) }
-            var angles: [CGFloat] = [], a = first
-            for k in members.indices {
-                if k > 0 { a = free(sized[k], from: a, gap: gap) }
-                angles.append(a)
-                let next = sized[(k + 1) % members.count]
-                let here = rect(ringPoint(sized[k], a, gap: gap), sized[k])
-                var near: CGFloat = 0, far = CGFloat.pi
-                for _ in 0..<10 {
-                    let mid = (near + far) / 2
-                    if signedDistance(here, rect(ringPoint(next, a + mid, gap: gap), next)) < restGap { near = mid } else { far = mid }
-                }
-                a += far + share
-            }
-            return (angles, a - first)
-        }
-
-        /// The first angle from `a` onward where a word of `size` on the ring clears the words of
-        /// inner rings: a coarse sweep, then bisection, so the spot moves smoothly with `a`.
-        private func free(_ size: CGSize, from a: CGFloat, gap: CGFloat) -> CGFloat {
-            func taken(_ angle: CGFloat) -> Bool {
-                let r = rect(ringPoint(size, angle, gap: gap), size)
-                return placed.contains { signedDistance(r, $0) < restGap }
-            }
-            guard taken(a) else { return a }
-            var near = a
-            for _ in 0..<105 {
-                let far = near + 0.06
-                guard taken(far) else {
-                    var low = near, high = far
-                    for _ in 0..<8 {
-                        let mid = (low + high) / 2
-                        if taken(mid) { low = mid } else { high = mid }
+        let reach = max(2, Int((Double(words.count) / 2).squareRoot().rounded(.up)) + 2)
+        for id in words {
+            let half = sizes[id]!.width / 2
+            var best: (cost: CGFloat, row: Int, x: CGFloat)?
+            for row in -reach...reach {
+                let y = center.y + CGFloat(row) * rowHeight
+                let taken = rows[row] ?? []
+                var candidates = row % 2 == 0 ? [center.x] : [center.x - half - restGap / 2, center.x + half + restGap / 2]
+                for span in taken { candidates += [span.lowerBound - restGap - half, span.upperBound + restGap + half] }
+                for x in candidates where !taken.contains(where: { x - half < $0.upperBound + restGap - 0.5 && x + half > $0.lowerBound - restGap + 0.5 }) {
+                    var cost = hypot(x - center.x, y - center.y)
+                    let partners = targets.filter { other, p in
+                        abs(p.y - y) < rowHeight * 1.5 && abs(p.x - x) < half + sizes[other]!.width / 2 + restGap * 2 && affinity(id, other)
                     }
-                    return high
+                    cost -= 45 * CGFloat(partners.count)
+                    if best == nil || cost < best!.cost { best = (cost, row, x) }
                 }
-                near = far
             }
-            return a
+            guard let best else { continue }
+            rows[best.row, default: []].append((best.x - half)...(best.x + half))
+            targets[id] = CGPoint(x: best.x, y: center.y + CGFloat(best.row) * rowHeight)
         }
-
-        /// Center of a word of `size` on the ring in direction `angle`: exactly `gap` from the
-        /// focus surface (capsules are horizontal segments with round caps).
-        private func ringPoint(_ size: CGSize, _ angle: CGFloat, gap: CGFloat) -> CGPoint {
-            let cx = abs(cos(angle)), cy = abs(sin(angle))
-            let span = max(0, size.width / 2 - size.height / 2) + max(0, coreSize.width / 2 - coreSize.height / 2)
-            let reach = gap + size.height / 2 + coreSize.height / 2
-            var t = cy > 0.0001 ? reach / cy : .infinity
-            if t * cx > span { t = span * cx + sqrt(max(0, reach * reach - span * span * cy * cy)) }
-            return CGPoint(x: core.x + cos(angle) * t, y: core.y + sin(angle) * t)
+        let mirrors = [(1, 1), (-1, 1), (1, -1), (-1, -1)].map { sx, sy in
+            targets.mapValues { CGPoint(x: center.x + CGFloat(sx) * ($0.x - center.x), y: center.y + CGFloat(sy) * ($0.y - center.y)) }
         }
-
-        /// The ring point, or, when a whole ring is taken and a word stayed on a blocked spot,
-        /// the nearest point outward along the same ray that clears the inner words.
-        private func point(_ size: CGSize, _ angle: CGFloat, gap: CGFloat) -> CGPoint {
-            let base = ringPoint(size, angle, gap: gap)
-            func at(_ t: CGFloat) -> CGPoint { CGPoint(x: base.x + cos(angle) * t, y: base.y + sin(angle) * t) }
-            func blocked(_ t: CGFloat) -> Bool { placed.contains { signedDistance(rect(at(t), size), $0) < restGap } }
-            guard blocked(0) else { return base }
-            var near: CGFloat = 0, far: CGFloat = 2000
-            for _ in 0..<12 {
-                let mid = (near + far) / 2
-                if blocked(mid) { near = mid } else { far = mid }
-            }
-            return at(far)
+        func travel(_ cells: [UUID: CGPoint]) -> CGFloat {
+            cells.reduce(0) { sum, cell in sum + (current[cell.key].map { hypot($0.x - cell.value.x, $0.y - cell.value.y) } ?? 0) }
         }
+        return mirrors.min { travel($0) < travel($1) }!
     }
 
     private static func unit(from a: CGPoint, to b: CGPoint) -> CGVector {

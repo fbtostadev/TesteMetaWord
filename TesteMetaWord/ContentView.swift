@@ -4,6 +4,8 @@ import UIKit
 struct ContentView: View {
     @State private var composition = Composition()
     @State private var bodies: [UUID: Physics.Body] = [:]
+    /// Each word's cell in the honeycomb, recomputed only when the composition changes.
+    @State private var layout: [UUID: CGPoint] = [:]
     @State private var lastTick: Date?
     @State private var dragOrigin: CGPoint?
     @State private var fusionTask: Task<Void, Never>?
@@ -47,6 +49,15 @@ struct ContentView: View {
         var center: CGPoint { CGPoint(x: canvas.width / 2, y: canvas.height / 2) }
     }
 
+    /// What the honeycomb depends on; any change reorders it.
+    struct LayoutInputs: Equatable {
+        let chips: [UUID]
+        let zones: [UUID: Int]
+        let focus: UUID?
+        let sizes: [UUID: CGSize]
+        let canvas: CGSize
+    }
+
     /// One finger on each of two chips: which finger holds which chip, and where both started.
     struct Pinch {
         let fingers: [ObjectIdentifier: UUID]
@@ -84,6 +95,9 @@ struct ContentView: View {
                     bodies = Physics.spawn(composition.chips.map(\.id), core: nil, at: space.center, seed: first.id)
                     settleIfReduced(space)
                 }
+            }
+            .onChange(of: LayoutInputs(chips: composition.chips.map(\.id), zones: composition.zones, focus: composition.focus, sizes: sizes, canvas: space.canvas), initial: true) {
+                relayout(space)
             }
             .onChange(of: dynamicTypeSize) { cancel(space) }
             .onChange(of: composition.calibration) { cancel(space) }
@@ -383,12 +397,27 @@ struct ContentView: View {
     }
 
     private func simulate(_ space: Space, dt: CGFloat) {
-        Physics.step(&bodies, sizes: space.sizes, focus: composition.focus, zones: composition.zones, center: space.center, bounds: space.bounds, dt: dt)
+        Physics.step(&bodies, sizes: space.sizes, targets: layout, bounds: space.bounds, dt: dt)
+    }
+
+    /// Reorders the honeycomb after a change. Words whose cell moved set off for it gently, along
+    /// the ease-in curve of a release; complementary words (a strong fusion) attract.
+    private func relayout(_ space: Space) {
+        let current = bodies.mapValues(\.position)
+        let next = Physics.layout(sizes: space.sizes, focus: composition.focus, zones: composition.zones,
+                                  center: space.center, current: current,
+                                  affinity: { composition.strength($0, $1) == 1 })
+        for (id, cell) in next {
+            if let old = layout[id], hypot(old.x - cell.x, old.y - cell.y) < 8 { continue }
+            bodies[id]?.ramp = 0
+        }
+        layout = next
     }
 
     /// Reduce Motion: jump straight to equilibrium instead of animating the physics.
     private func settleIfReduced(_ space: Space) {
         guard reduceMotion, !isActing else { return }
+        relayout(space)
         for _ in 0..<240 { simulate(space, dt: 1.0 / 60) }
     }
 
