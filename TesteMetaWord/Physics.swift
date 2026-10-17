@@ -52,6 +52,26 @@ enum Physics {
         return hypot(horizontal, a.midY - b.midY) - ar - br
     }
 
+    /// How far the words around the BubbleKey step aside while a dragged word is over it, and how
+    /// far from its surface that reaches (fading to nothing).
+    static let wayPush: CGFloat = 18
+    static let wayReach: CGFloat = 220
+
+    /// A visual step aside, not a move of the body: away from the nearest point of the BubbleKey's
+    /// capsule (`focus`), `wayPush × emphasis`, plus what the BubbleKey grows toward the word
+    /// (`growth`, its extra width and height), fading out over `wayReach` from its surface.
+    static func makeWay(_ center: CGPoint, size: CGSize, from focus: CGRect, growth: CGSize, emphasis: CGFloat) -> CGVector {
+        let radius = focus.height / 2
+        let nearest = CGPoint(x: min(max(center.x, focus.minX + radius), focus.maxX - radius), y: focus.midY)
+        let dx = center.x - nearest.x, dy = center.y - nearest.y
+        let length = hypot(dx, dy)
+        guard length > 0.5, emphasis > 0 || growth != .zero else { return .zero }
+        let gap = max(0, signedDistance(rect(center, size), focus))
+        let falloff = max(0, 1 - gap / wayReach)
+        let push = (wayPush * emphasis + abs(dx) / length * growth.width / 2 + abs(dy) / length * growth.height / 2) * falloff
+        return CGVector(dx: dx / length * push, dy: dy / length * push)
+    }
+
     /// The chip whose capsule contains `point`; where capsules overlap, the nearest center wins.
     static func hit(_ point: CGPoint, centers: [UUID: CGPoint], sizes: [UUID: CGSize]) -> UUID? {
         centers.compactMap { id, center -> (id: UUID, distance: CGFloat)? in

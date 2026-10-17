@@ -264,4 +264,21 @@ struct PhysicsTests {
         let far = settled.filter { $0.key != key }.map { distance($0.value, center) }.max()!
         #expect(far < 300, "and close in around it")
     }
+
+    @Test func wordsAroundTheBubbleKeyStepAsideAwayFromIt() {
+        let focus = Physics.rect(center, CGSize(width: 200, height: 56))
+        let size = CGSize(width: 100, height: 56)
+        func way(_ point: CGPoint, emphasis: CGFloat = 1, growth: CGSize = .zero) -> CGVector {
+            Physics.makeWay(point, size: size, from: focus, growth: growth, emphasis: emphasis)
+        }
+        let right = way(CGPoint(x: center.x + 180, y: center.y))
+        #expect(right.dx > 0 && abs(right.dy) < 0.001, "a side neighbour moves sideways")
+        let above = way(CGPoint(x: center.x + 40, y: center.y - 86))
+        #expect(above.dy < 0 && abs(above.dx) < 0.001, "above the capsule's flat part, straight up")
+        #expect(hypot(right.dx, right.dy) <= Physics.wayPush)
+        #expect(way(CGPoint(x: center.x + 600, y: center.y)) == .zero, "beyond the reach nothing moves")
+        #expect(way(CGPoint(x: center.x + 180, y: center.y), emphasis: 0) == .zero)
+        let grown = way(CGPoint(x: center.x + 180, y: center.y), growth: CGSize(width: 40, height: 0))
+        #expect(grown.dx > right.dx + 15, "and further by what the BubbleKey grows toward it")
+    }
 }

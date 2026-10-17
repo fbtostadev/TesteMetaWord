@@ -14,6 +14,9 @@ struct ContentView: View {
     @State private var dragOrigin: CGPoint?
     /// The dragging finger, which picks the BubbleKey's gap.
     @State private var dragFinger: CGPoint?
+    /// 0 … 1: how much the BubbleKey stands out while a dragged word is over it (it grows
+    /// slightly and the words around it step aside), eased in and out on the frame clock.
+    @State private var emphasis: CGFloat = 0
     @State private var fusionTask: Task<Void, Never>?
     @State private var fusingPair: MergePair?
     @State private var passiveTask: Task<Void, Never>?
@@ -184,7 +187,7 @@ struct ContentView: View {
                         }
                         .offset(membraneOffset(chip, space, time: time))
                         .offset(tensionProgress(chip, time: time).map { SplitTension.offset(progress: $0, time: time) } ?? .zero)
-                        .scaleEffect(tensionProgress(chip, time: time).map(SplitTension.scale) ?? 1)
+                        .scaleEffect((tensionProgress(chip, time: time).map(SplitTension.scale) ?? 1) * focusScale(chip))
                         .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: composition.resistance)
                         .position(rendered(chip, space, time: time))
                         .zIndex(composition.dragging == chip.id || composition.pinching?.contains(chip.id) == true || fusingPair?.source == chip.id ? 1 : 0)
@@ -240,7 +243,10 @@ struct ContentView: View {
         let focus = composition.focus
         let open = composition.chips.first { $0.id == focus }.flatMap { opening($0, space) }?.width ?? 0
         let focusRect = focus.flatMap { id in
-            bodies[id].flatMap { body in space.sizes[id].map { Physics.rect(body.position, CGSize(width: $0.width + open, height: $0.height)) } }
+            bodies[id].flatMap { body in space.sizes[id].map { size in
+                let scale = composition.chips.first { $0.id == id }.map(focusScale) ?? 1
+                return Physics.rect(body.position, CGSize(width: (size.width + open) * scale, height: size.height * scale))
+            } }
         } ?? .zero
         let engaged = focus.map { id in
             composition.dragging == id || composition.selected == id
@@ -388,12 +394,49 @@ struct ContentView: View {
 
     /// Body position plus the idle orbit. Words being handled stop floating so they hold still.
     private func rendered(_ chip: WordChip, _ space: Space, time: TimeInterval) -> CGPoint {
-        let position = bodies[chip.id]?.position ?? space.center
+        var position = bodies[chip.id]?.position ?? space.center
+        let way = makeWay(chip, space)
+        position.x += way.dx
+        position.y += way.dy
         let floats = !reduceMotion && composition.dragging != chip.id && composition.selected != chip.id
             && composition.activePair?.contains(chip.id) != true && fusingPair?.contains(chip.id) != true
             && tension?.id != chip.id
         let orbit = Physics.orbit(phase: chip.phase, time: time, amplitude: floats ? Physics.orbitAmplitude : 0)
         return CGPoint(x: position.x + orbit.dx, y: position.y + orbit.dy)
+    }
+
+    // MARK: - BubbleKey in focus
+
+    /// How much the BubbleKey grows at full emphasis.
+    private static let focusGrowth: CGFloat = 0.06
+    /// Time constant of the emphasis easing.
+    private static let emphasisEase: TimeInterval = 0.12
+
+    /// A word dragged within reach of the BubbleKey, until it has entered it, gives the BubbleKey
+    /// the stage. Not with Reduce Motion, which moves nothing aside.
+    private var emphasisTarget: CGFloat {
+        guard !reduceMotion, let focus = composition.focus else { return 0 }
+        let over = composition.dragging != nil && composition.approachTarget == focus
+        let entering = fusingPair?.contains(focus) == true && composition.candidate.flatMap(composition.entering) != nil
+        return over || entering ? 1 : 0
+    }
+
+    private func focusScale(_ chip: WordChip) -> CGFloat {
+        chip.id == composition.focus ? 1 + Self.focusGrowth * emphasis : 1
+    }
+
+    /// The step aside of a word around the emphasized BubbleKey: every word but the BubbleKey and
+    /// the pair being handled, away from its grown capsule (scale and open gap).
+    private func makeWay(_ chip: WordChip, _ space: Space) -> CGVector {
+        guard emphasis > 0.001, let focusID = composition.focus, chip.id != focusID,
+              composition.dragging != chip.id, fusingPair?.contains(chip.id) != true,
+              let focus = composition.chips.first(where: { $0.id == focusID }),
+              let center = bodies[focusID]?.position, let size = space.sizes[focusID],
+              let position = bodies[chip.id]?.position, let chipSize = space.sizes[chip.id] else { return .zero }
+        let scale = focusScale(focus)
+        let open = opening(focus, space)?.width ?? 0
+        let growth = CGSize(width: (size.width + open) * scale - size.width, height: size.height * (scale - 1))
+        return Physics.makeWay(position, size: chipSize, from: Physics.rect(center, size), growth: growth, emphasis: emphasis)
     }
 
     /// Fusion results cross-fade into place; every other new word buds out from a smaller scale.
@@ -442,6 +485,13 @@ struct ContentView: View {
 
     private func tick(_ date: Date, _ space: Space) {
         defer { lastTick = date }
+        let target = emphasisTarget
+        if emphasis != target, let lastTick {
+            let step = 1 - exp(-date.timeIntervalSince(lastTick) / Self.emphasisEase)
+            emphasis = abs(target - emphasis) < 0.002 ? target : emphasis + (target - emphasis) * step
+        } else if reduceMotion {
+            emphasis = 0
+        }
         if composition.dragging != nil { updateProximity(space, time: date.timeIntervalSinceReferenceDate) }
         if composition.pinching != nil { updatePinchProximity(space) }
         watchdog(date.timeIntervalSinceReferenceDate, space)
@@ -574,7 +624,8 @@ struct ContentView: View {
         guard let word = composition.entering(pair), let gap = composition.insertion,
               let focusID = composition.focus, let chip = composition.chips.first(where: { $0.id == focusID }),
               let focus = bodies[focusID]?.position, let layout = phrase(chip, space) else { return nil }
-        return (word.id, focusID, focus, CGPoint(x: focus.x - layout.size.width / 2 + layout.gapX(gap), y: focus.y))
+        let x = focus.x + (layout.gapX(gap) - layout.size.width / 2) * focusScale(chip)
+        return (word.id, focusID, focus, CGPoint(x: x, y: focus.y))
     }
 
     /// While the dragged word is over the BubbleKey, the gap under the finger, measured on the
@@ -585,8 +636,8 @@ struct ContentView: View {
             composition.updateInsertion(nil)
             return
         }
-        let left = rendered(chip, space, time: time).x - layout.size.width / 2
-        composition.updateInsertion(layout.gap(at: finger.x - left, current: composition.insertion))
+        let x = (finger.x - rendered(chip, space, time: time).x) / focusScale(chip) + layout.size.width / 2
+        composition.updateInsertion(layout.gap(at: x, current: composition.insertion))
     }
 
     private func drag(_ id: UUID, _ space: Space) -> some Gesture {
