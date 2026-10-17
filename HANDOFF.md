@@ -65,6 +65,24 @@ Worktree `TesteMetaWord-wt-gramatica-procedural`. A tabela de regras escrita à 
 - **Centralização em bloco:** a BubbleKey volta ao centro com a colmeia inteira deslizando junto (`Physics.recenter`), sem que nenhuma bolha troque de vizinho ou fileira. Restaura a intenção “o foco migra para o centro” sem o embaralhamento.
 - **Em aberto (decisão da equipe):** texto das fusões fraca e média; se a zona externa deve exigir sobreposição maior; som de erro, que deixa de ocorrer com a gramática; sugestões por associação (n-gram, `NLEmbedding`).
 
+## Próximo experimento: inserção posicional (`exp/insercao-posicional`)
+
+Proposta aprovada para outra sessão, ainda não iniciada. Parte de `exp/gramatica-procedural` (depende de `Grammar.swift`), que ainda não entrou na `main`.
+
+- **Ideia:** a posição do drag sobre a BubbleKey escolhe a fresta entre palavras onde a nova entra; a frase abre espaço ao vivo e se fecha ao afastar.
+- **Etapas:**
+  1. a gramática gera a frase como lista de palavras e aceita inserção numa posição escolhida;
+  2. a bolha desenha palavra por palavra (na mesma cápsula de vidro), mede cada uma e calcula a fresta sob o dedo, com histerese;
+  3. abertura animada da frase, integrada à física (`Physics.adapt`/`compact`) e à atmosfera;
+  4. acessibilidade (VoiceOver ajustável “no início / depois de … / no fim”, setas no teclado) e teste de interface soltando à esquerda e à direita da mesma bolha.
+- **Decisões a tomar antes de começar:**
+  - a ordem escolhida pelo usuário é final ou a gramática corrige (“Quero agora ir” fica ou vira “Quero ir agora”)? Proposta: ordens naturais contam como fusão forte, as demais como mais fraca;
+  - tirar uma palavra da frase desfaz só aquela palavra? Isso muda o Undo, que hoje volta um estado inteiro por vez.
+- **Começar com:**
+  ```sh
+  git -C ~/dev/TesteMetaWord worktree add ../TesteMetaWord-wt-insercao-posicional -b exp/insercao-posicional exp/gramatica-procedural
+  ```
+
 ## Pendências
 
 - Avaliação manual da sensação do gesto e da física, do idle em uso de C.A., da membrana, do long press, do VoiceOver, do desempenho; iPad físico.
