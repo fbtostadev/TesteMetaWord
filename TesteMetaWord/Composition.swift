@@ -51,6 +51,9 @@ struct Calibration: Equatable {
     private(set) var approachTarget: UUID?
     /// Overlap depth of the armed-capable pair being approached, 0 (touching or apart) to 1; drives the continuous tone.
     private(set) var depth = 0.0
+    /// Gap of the BubbleKey's phrase where the other word of the active pair enters, before word
+    /// `insertion` (0 … its number of words); nil when the pair does not hold the BubbleKey.
+    private(set) var insertion: Int?
     private var advanceDepth = 0.0
     private var advancedAt: TimeInterval = 0
     var calibration = Calibration() { didSet { cancel() } }
@@ -112,6 +115,49 @@ struct Calibration: Equatable {
         fusions.merge(next.fusions) { _, new in new }
         lexicon = next
     }
+    /// Words of the BubbleKey's phrase, once the engine has read this BubbleKey.
+    var focusPhrase: [String]? {
+        guard let focus, chips.first(where: { $0.id == focus })?.text == lexicon.focus, !lexicon.phrase.isEmpty else { return nil }
+        return lexicon.phrase
+    }
+
+    /// The word of `pair` that enters the BubbleKey's phrase, when the pair holds the BubbleKey.
+    func entering(_ pair: MergePair) -> WordChip? {
+        guard let focus, focusPhrase != nil, pair.contains(focus) else { return nil }
+        let other = pair.source == focus ? pair.target : pair.source
+        return chips.first { $0.id == other && lexicon.insertions[$0.text] != nil }
+    }
+
+    /// The fusion at each gap of the BubbleKey for `pair`.
+    private func insertions(_ pair: MergePair) -> [Vocabulary.Combination]? {
+        entering(pair).flatMap { lexicon.insertions[$0.text] }
+    }
+
+    /// Where the grammar reads the pair best: the strongest gap, the last on ties. Gestures that
+    /// do not point at a gap (tap, pinch, dragging the BubbleKey itself) start there.
+    func naturalGap(_ pair: MergePair) -> Int? {
+        guard let options = insertions(pair), let best = options.map(\.strength).min() else { return nil }
+        return options.lastIndex { $0.strength == best }
+    }
+
+    /// The dragged word is choosing a gap in the BubbleKey; this takes priority over a shake.
+    var choosingGap: Bool { dragging != nil && insertion != nil }
+
+    /// While a dragged word is over the BubbleKey: the gap under the finger.
+    func updateInsertion(_ gap: Int?) {
+        guard dragging != nil, let gap, let pair = activePair, let count = insertions(pair)?.count else {
+            insertion = nil
+            return
+        }
+        insertion = min(max(0, gap), count - 1)
+    }
+
+    /// Keyboard and VoiceOver: moves the prepared pair's gap by `step` words.
+    func moveInsertion(by step: Int) {
+        guard let candidate, let insertion, let count = insertions(candidate)?.count else { return }
+        self.insertion = min(max(0, insertion + step), count - 1)
+    }
+
     var activePair: MergePair? {
         candidate ?? pinching ?? dragging.flatMap { source in approachTarget.map { MergePair(source: source, target: $0) } }
     }
@@ -137,7 +183,9 @@ struct Calibration: Equatable {
         guard chips.contains(where: { $0.id == id }), dragging == nil, pinching == nil else { return }
         if let candidate, candidate.contains(id) { confirm(); return }
         if let selected, selected != id, compatible(selected, id) {
-            candidate = MergePair(source: selected, target: id)
+            let pair = MergePair(source: selected, target: id)
+            candidate = pair
+            insertion = naturalGap(pair)
         } else {
             let wasSelected = selected == id
             cancel()
@@ -219,8 +267,10 @@ struct Calibration: Equatable {
 
     private func release() -> MergePair? {
         let pair = dropCandidate
+        let gap = pair.flatMap { insertions($0) == nil ? nil : insertion ?? naturalGap($0) }
         cancel()
         candidate = pair
+        insertion = gap
         return pair
     }
 
@@ -233,13 +283,15 @@ struct Calibration: Equatable {
         approachTarget = nil
         resistance = 0
         depth = 0
+        insertion = nil
     }
 
+    /// A pair holding the BubbleKey fuses at its gap; any other fuses as a whole.
     private func confirm() {
         guard let pair = candidate,
               let a = chips.first(where: { $0.id == pair.source }),
               let b = chips.first(where: { $0.id == pair.target }),
-              let combination = fusions[[a.text, b.text]] else { return }
+              let combination = insertion.flatMap({ insertions(pair)?[$0] }) ?? fusions[[a.text, b.text]] else { return }
         let result = WordChip(combination.result, fusionCount: a.fusionCount + b.fusionCount + 1, glassID: a.glassID, phase: a.phase)
         var act = Act(chips: chips, result: result.id, origins: [a, b])
         let index = chips.firstIndex(where: { pair.contains($0.id) }) ?? 0

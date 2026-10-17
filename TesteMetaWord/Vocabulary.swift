@@ -14,6 +14,16 @@ enum Vocabulary {
         Grammar.shared.fuse(a, b)
     }
 
+    /// The words of a phrase, each one a vocabulary word ("Quero", "ir", "para casa").
+    static func words(of text: String) -> [String] {
+        Grammar.shared.units(of: text).map(\.text)
+    }
+
+    /// `text` entering `phrase` before its word `index`, in that order (see `Grammar.insert`).
+    static func insert(_ text: String, into phrase: String, at index: Int) -> Combination? {
+        Grammar.shared.insert(text, into: phrase, at: index)
+    }
+
     /// Up to three words related to `text`, budded by a shake (see `Grammar.related`).
     static func related(to text: String, excluding present: Set<String>) -> [String] {
         Grammar.shared.related(to: text, excluding: present)

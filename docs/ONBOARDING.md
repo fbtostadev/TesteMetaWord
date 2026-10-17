@@ -17,7 +17,8 @@ O que está na coluna da esquerda é a tese do protótipo: mudar exige decisão 
 | Liquid Glass **nativo** do SwiftUI, sem simulação com blur/gradiente | `GlassEffectContainer(spacing: Physics.glassSpacing)`, tints, `glassEffectID` |
 | Fusão como **mitose reversa**; sugestões **brotam** do resultado (mitose) | Tempos (0,2 s de convergência), impulsos radiais, crossfade |
 | Intenção medida por **profundidade de sobreposição**, nunca por tempo (sem dwell) | Limiar de 45% da menor altura |
-| **A composição fica parada durante o gesto** e só se reorganiza depois | Congelar a física enquanto há arrasto, seleção, par preparado ou fusão |
+| **A composição fica parada durante o gesto** e só se reorganiza depois; a única exceção é visual: com uma palavra sobre a BubbleKey, as vizinhas se afastam e voltam (decisão do autor, 17/10) | Congelar a física enquanto há arrasto, seleção, par preparado ou fusão; afastamento por deslocamento visual (`Physics.makeWay`), sem mover corpos |
+| Na BubbleKey, **a ordem escolhida pela pessoa é final**; a gramática só conjuga | Fresta pelo meio das palavras com histerese de 10 pt, abertura com a largura da palavra, 1,06× e 18 pt de afastamento |
 | **Centro óptico** (palavra recém-fundida) e **três zonas de atmosfera**: mais perto do foco, mais provável a fusão | Algoritmo de slots por zona, bisseção do raio, gaps 40/136/232 pt, constantes em `Physics.swift` |
 | Composição **orgânica**, sem grade fixa; flutuação idle **sincronizada por família** | Órbita de 4 pt e 6 s, fase herdada |
 | Erro é recuperável: **Undo** como divisão do resultado, long press, alternativa por toque | Histórico de estados completos |
@@ -49,7 +50,7 @@ Quando alguém abrir o projeto pela primeira vez, pedir contexto (“o que é is
 - Não altere uma **intenção de design** (tabela 1.1) por conta própria. Se uma tarefa a contradiz, aponte o conflito e peça decisão.
 - **Segredos:** nunca leia, imprima nem commite `.env`. Cada pessoa cria o seu a partir de `.env.example`. A chave do Jev usada nos comparativos é do autor e não acompanha o repositório; quem precisar rodar `ml/evaluate_jev.py` obtém uma chave própria.
 - Ao relatar resultados, separe sempre: **compilado**, **testado no simulador**, **validado em iPad físico**, **avaliado com usuário de C.A.** Não promova um nível ao outro.
-- Validação mínima: build, testes de lógica (`./scripts/test.sh`) e, antes de integrar, o percurso de interface básico (`./scripts/test.sh ui`: soltura rasa, arrastar e soltar, fusão da zona externa, Undo, long press). Não criar testes nem scripts que comparem renderizadores, flags ou capturas no simulador; crashes e erros críticos são relatados pela pessoa usuária.
+- Validação mínima: build, testes de lógica (`./scripts/test.sh`) e, antes de integrar, o percurso de interface básico (`./scripts/test.sh ui`: soltura rasa, arrastar e soltar, soltar à esquerda e à direita da BubbleKey, fusão da zona externa, Undo, long press). Não criar testes nem scripts que comparem renderizadores, flags ou capturas no simulador; crashes e erros críticos são relatados pela pessoa usuária.
 - Não acrescente serviço remoto de IA, voz ou persistência sem que a equipe defina o experimento.
 - Terminou uma tarefa que muda o estado do projeto? Atualize `HANDOFF.md`.
 

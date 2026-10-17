@@ -10,6 +10,10 @@ struct Lexicon: Equatable {
     var zones: [String: Int] = [:]
     /// Words a shake buds from each word, none of them already present.
     var related: [String: [String]] = [:]
+    /// Words of the focus's phrase, in order; the gaps between them are where another word enters.
+    var phrase: [String] = []
+    /// For every other word, the fusion of it entering the focus at each gap (0 … `phrase.count`).
+    var insertions: [String: [Vocabulary.Combination]] = [:]
 }
 
 /// Source of combinations, suggestions, focus and zones, asked after every change of the word
@@ -37,7 +41,15 @@ struct RuleEngine: CompositionEngine {
         let present = Set(words)
         let related = Dictionary(words.map { ($0, Vocabulary.related(to: $0, excluding: present)) }) { first, _ in first }
         guard let center else { return Lexicon(fusions: fusions, related: related) }
-        let zones = Dictionary(words.filter { $0 != center }.map { ($0, Vocabulary.zone(of: $0, focus: center)) }) { first, _ in first }
-        return Lexicon(fusions: fusions, focus: center, zones: zones, related: related)
+        let phrase = Vocabulary.words(of: center)
+        let others = words.filter { $0 != center }
+        let insertions = Dictionary(others.map { word in
+            (word, (0...phrase.count).compactMap { Vocabulary.insert(word, into: center, at: $0) })
+        }) { first, _ in first }
+        // The zone is the strongest way the word can enter the focus.
+        let zones = Dictionary(others.map { word in
+            (word, insertions[word]?.map(\.strength).min() ?? Vocabulary.zone(of: word, focus: center))
+        }) { first, _ in first }
+        return Lexicon(fusions: fusions, focus: center, zones: zones, related: related, phrase: phrase, insertions: insertions)
     }
 }

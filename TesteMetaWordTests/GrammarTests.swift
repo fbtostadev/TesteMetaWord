@@ -130,4 +130,60 @@ struct GrammarTests {
             }
         }
     }
+
+    @Test func phrasesSplitIntoVocabularyWords() {
+        #expect(Vocabulary.words(of: "Gosto de brincar de massinha") == ["Gosto de", "brincar", "de massinha"])
+        #expect(Vocabulary.words(of: "Sim, quero ir") == ["Sim,", "quero", "ir"])
+        #expect(Vocabulary.words(of: "Nós tomamos banho") == ["Nós", "tomamos banho"])
+        #expect(Vocabulary.words(of: "Quero comer e beber") == ["Quero", "comer", "e", "beber"])
+    }
+
+    /// The person chooses the order; the grammar only conjugates, and grades the order.
+    @Test func insertionKeepsTheChosenOrder() {
+        #expect(Vocabulary.insert("agora", into: "Quero ir", at: 2) == Vocabulary.combine("Quero ir", "agora"))
+        let chosen = Vocabulary.insert("agora", into: "Quero ir", at: 1)
+        #expect(chosen?.result == "Quero agora ir")
+        #expect(chosen?.strength == 2, "out of the natural order, one step weaker")
+        let cases: [(String, String, Int, String, Int)] = [
+            ("eu", "Quero ir", 0, "Eu quero ir", 1),
+            ("eu", "Quero ir", 2, "Quero ir eu", 2),
+            ("você", "Quero ir", 0, "Você quer ir", 1),
+            ("você", "Quero ir", 1, "Quer você ir", 2),
+            ("querer", "Eu brinco", 1, "Eu quero brincar", 1),
+            ("sim", "Quero ir", 2, "Quero ir, sim", 3),
+            ("eu", "brincar", 1, "Brinco eu", 3),
+            ("Quero ir", "eu", 1, "Eu quero ir", 1)
+        ]
+        for (text, phrase, index, result, strength) in cases {
+            let inserted = Vocabulary.insert(text, into: phrase, at: index)
+            #expect(inserted?.result == result, "\(text) → \(phrase) @\(index)")
+            #expect(inserted?.strength == strength, "\(text) → \(phrase) @\(index)")
+        }
+        #expect(Vocabulary.insert("ir", into: "ir", at: 0) == nil)
+    }
+
+    @Test func twinSlotsMeetWithE() {
+        let cases: [(String, String, Int, String)] = [
+            ("comer", "Quero ir", 2, "Quero ir e comer"),
+            ("comer", "Quero ir", 0, "Comer e quero ir"),
+            ("comer", "Quero ir", 1, "Quero comer e ir"),
+            ("agora", "Quero comer e beber", 4, "Quero comer e beber agora")
+        ]
+        for (text, phrase, index, result) in cases {
+            let inserted = Vocabulary.insert(text, into: phrase, at: index)
+            #expect(inserted?.result == result, "\(text) → \(phrase) @\(index)")
+            #expect(inserted?.strength == 3)
+        }
+        #expect(Vocabulary.insert("beber", into: "Quero comer", at: 2) == Vocabulary.combine("Quero comer", "beber"))
+    }
+
+    /// Wherever the grammar's own order is reachable, some gap gives exactly the fusion.
+    @Test func someGapGivesEachLegacyFusion() {
+        for (a, b, _, _) in Self.legacyRules {
+            let fused = Vocabulary.combine(a, b)
+            let gaps = (0...Vocabulary.words(of: a).count).compactMap { Vocabulary.insert(b, into: a, at: $0) }
+            #expect(gaps.contains(fused!), "\(b) → \(a)")
+            #expect(gaps.map(\.strength).min() == fused?.strength)
+        }
+    }
 }

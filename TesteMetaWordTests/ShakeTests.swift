@@ -21,6 +21,22 @@ import CoreGraphics
         #expect(firing(correction) == nil, "an overshoot and its correction")
     }
 
+    /// Choosing a gap in the BubbleKey takes priority: its back and forth never shakes, and swings
+    /// made before or during it do not count once it ends.
+    @Test func choosingAGapSuspendsTheShake() {
+        var detector = ShakeDetector()
+        let x: (Int) -> CGPoint = { CGPoint(x: $0 % 2 == 0 ? 0 : 40, y: 0) }
+        var shook = false
+        for k in 0..<10 { shook = detector.add(x(k), time: Double(k) * 0.1, suspended: true) || shook }
+        #expect(!shook)
+        // Within the grace the finger slipped out of reach: still no shake.
+        shook = detector.add(x(10), time: 1.2) || detector.add(x(11), time: 1.3)
+        #expect(!shook)
+        // After it, a shake starts over from its first swing.
+        let fired = (0..<8).first { detector.add(x($0), time: 1.5 + Double($0) * 0.1) }
+        #expect(fired == 4)
+    }
+
     @Test func relatedWordsContinueTheBubble() {
         #expect(Vocabulary.related(to: "comer", excluding: []) == ["pão", "fruta", "biscoito"], "its own complements")
         #expect(Vocabulary.related(to: "Quero ir", excluding: []) == ["para casa", "ao banheiro", "à escola"])

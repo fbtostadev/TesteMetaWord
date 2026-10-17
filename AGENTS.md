@@ -4,7 +4,7 @@
 
 O **TesteMetaWord** é um laboratório de design e **microinterações** para um app de **Comunicação Alternativa (C.A.) no iPad**. O foco é experimentar a composição de linguagem por manipulação direta de palavras: gestos, aproximação, atração, snapping e fusão de bolhas.
 
-A v1 implementa composição local com chips de Liquid Glass em uma grid circular de zonas de relevância, flutuação idle, fusão ao soltar, confirmação por toque, Undo e calibração. `SPEC.md` define o comportamento atual; o conceito abaixo também inclui experimentos futuros fora desta versão.
+A v1 implementa composição local com chips de Liquid Glass em uma grid circular de zonas de relevância, flutuação idle, fusão ao soltar, confirmação por toque, pinça, sacudir, gramática procedural, inserção posicional na BubbleKey, Undo e calibração. `SPEC.md` define o comportamento atual; o conceito abaixo também inclui experimentos futuros fora desta versão.
 
 ## Conceito central
 
@@ -28,19 +28,21 @@ O núcleo do experimento é a relação entre movimento físico, fusão visual e
 
 ## Decisões da v1
 
-- Sobreposição profunda (45% da menor altura) arma o par; soltar armado confirma a fusão. Hover superficial recebe resistência visual ao parar de avançar; soltura sem fusão devolve a palavra à sua zona na direção em que caiu, sem reordenar. Não há dwell.
+- Sobreposição profunda (45% da menor altura) arma o par; soltar armado confirma a fusão. Hover superficial recebe resistência visual ao parar de avançar; soltura sem fusão devolve a palavra à sua vaga na colmeia, com retorno suave, sem reordenar. Não há dwell.
 - Toque A → B → membro do par oferece alternativa sem arrasto.
 - Pinça: um dedo repousado sobre cada uma de duas bolhas (no máximo duas) seleciona o par; aproximá-las usa a mesma regra de 45% e soltar o primeiro dedo armado confirma. Par incompatível só recebe resistência (com a gramática, toda palavra se funde; o caso fica para motores que omitam pares). Com dois dedos não há long press. Toques são observados por `TouchTracker` (UIKit, sem consumir toques).
-- Toda palavra, de qualquer zona, se funde com qualquer outra, e o resultado vira o foco. Foco, zonas de relevância (força da fusão com o foco: interna, frase gramatical; média, telegráfica ou reparada; externa, coordenada com “e”) e uma colmeia orgânica (fileiras desencontradas em volta do foco, zonas de dentro para fora, pares complementares vizinhos), recalculada a cada mudança, posicionam as palavras. A física fica congelada durante o ato (arrasto, seleção, par preparado, fusão) e reorganiza depois; um vigia de ociosidade impede que um ato preso ou uma seleção esquecida a congelem para sempre. Órbitas idle sincronizadas por família mostram a origem comum. Fusão é mitose reversa; sugestões brotam do resultado (mitose). Detalhes e constantes em `SPEC.md`, `TesteMetaWord/Grammar.swift` (gramática lida de `ml/vocabulary.json`) e `TesteMetaWord/Physics.swift`.
-- Undo usa histórico de estados completos e se mostra como divisão do resultado. Long press e ação de acessibilidade dividem o resultado da última fusão ainda na tela, mesmo após outros atos; palavras repetidas na tela se fundem passivamente. Sacudir uma bolha no arrasto deriva até três palavras relacionadas, sem mudar o foco; Undo as remove. Durante o long press, a bolha mestre acumula tensão (tremor crescente + som tremular) e termina numa nota curta no instante da divisão. Os sons são de fundo (só fusão, divisão e erro, em volume baixo) e sempre ligados. O iPad não tem háptico para o dedo; o som faz esse papel.
+- Toda palavra, de qualquer zona, se funde com qualquer outra, e o resultado vira o foco. Foco, zonas de relevância (força da fusão com o foco: interna, frase gramatical; média, telegráfica ou reparada; externa, coordenada com “e”) e uma colmeia orgânica (fileiras desencontradas em volta do foco, zonas de dentro para fora, pares complementares vizinhos) posicionam as palavras. A colmeia é montada inteira só na abertura, num novo canvas ou com bolha mais alta que as fileiras; depois cada mudança é local (`Physics.adapt`), as palavras descem para vagas mais perto do foco (`compact`) e a colmeia desliza em bloco até o foco voltar ao centro (`recenter`). A física fica congelada durante o ato (arrasto, seleção, par preparado, fusão) e reorganiza depois; um vigia de ociosidade impede que um ato preso ou uma seleção esquecida a congelem para sempre. Órbitas idle sincronizadas por família mostram a origem comum. Fusão é mitose reversa; sugestões brotam do resultado (mitose). Detalhes e constantes em `SPEC.md`, `TesteMetaWord/Grammar.swift` (gramática lida de `ml/vocabulary.json`) e `TesteMetaWord/Physics.swift`.
+- Undo usa histórico de estados completos e se mostra como divisão do resultado. Long press e ação de acessibilidade dividem o resultado da última fusão ainda na tela, mesmo após outros atos; palavras repetidas na tela se fundem passivamente. Sacudir uma bolha no arrasto deriva até três palavras relacionadas, sem mudar o foco; Undo as remove. Durante o long press, a bolha mestre acumula tensão (tremor crescente + som tremular) e termina numa nota curta no instante da divisão. Os sons são de fundo (fusão, divisão, erro e um tom contínuo de profundidade da sobreposição, em volume baixo) e sempre ligados. O iPad não tem háptico para o dedo; o som faz esse papel.
+- **Inserção posicional:** sobre a BubbleKey, a posição do dedo escolhe a fresta entre palavras (histerese de 10 pt) e a frase se abre ao vivo; a ordem escolhida é final e a gramática só conjuga (fora da ordem natural, um grau mais fraca). Enquanto a palavra está ao alcance, a BubbleKey cresce até 1,06× e as vizinhas se afastam só visualmente (corpos e vagas não mudam), e escolher a fresta tem prioridade sobre sacudir. Toque, pinça e setas/VoiceOver usam a melhor fresta e a ajustam. Remover e reordenar palavras da frase ficam para depois (ato novo no histórico). Detalhes em `SPEC.md` e `TesteMetaWord/PhraseLayout.swift`.
 - Vocabulário e sugestões locais estão definidos em `SPEC.md`; o motor por modelo local ainda não está integrado ao app; não há voz. Cada chip guarda contagem de fusões e cresce 4% por fusão, até +24%.
 - Zona de sumiço e persistência estão fora da v1.
 - Parâmetros de calibração e limitações de validação constam em `SPEC.md` e `README.md`.
 
 ## Decisões em aberto para experimentos futuros
 
-- **Gestos e recuperação:** qual é o alvo do long press? O Undo reverte só a última fusão ou mantém um histórico? Qual alternativa existe para quem não consegue arrastar ou usar dois dedos?
-- **Vocabulário:** quais palavras aparecem inicialmente e quais combinações são válidas? As sugestões seguem oposição estrita ou alternativas contextuais contrastantes, como “agora/depois”?
+- **Gestos e recuperação:** qual alternativa existe para quem não consegue arrastar ou usar dois dedos, além do toque A → B?
+- **Frase da BubbleKey:** remover e reordenar palavras dentro da frase (ato novo no histórico; limiar entre segurar parado e puxar; alvos de `PhraseLayout.targets`). Texto das fusões fraca e média e de frases fora da ordem natural, a revisar com fonoaudiólogos.
+- **Vocabulário:** quais palavras aparecem inicialmente e quais combinações são válidas? As sugestões seguem oposição estrita ou alternativas contextuais contrastantes, como “agora/depois”? Sugestões por associação (n-gram, `NLEmbedding`)?
 - **Zona de sumiço:** qual é o diâmetro e como os chips desaparecem? Eles podem retornar? Como o Undo interage com essa zona?
 - **Persistência:** o que deve ser salvo entre sessões? Síntese de voz ainda não foi definida.
 
@@ -52,6 +54,7 @@ Não trate esses pontos como requisitos resolvidos nem acrescente serviços remo
 - Estado temporário em `Composition` (`@Observable`), sem persistência e sem SwiftData na v1.
 - `TesteMetaWord.xcodeproj` é o projeto para abrir no Xcode; `project.yml` é sua definição em XcodeGen.
 - `TesteMetaWord/ContentView.swift` contém a tela inicial.
+- A gramática (`TesteMetaWord/Grammar.swift`) lê `ml/vocabulary.json`, recurso do app via `project.yml` e fonte única para o app e o dataset; `TesteMetaWord/PhraseLayout.swift` mede as palavras da BubbleKey e calcula frestas e alvos.
 - `ml/` prepara o motor por modelo local (Python, mlx-lm); não faz parte do target do app.
 
 ## Diretrizes para experimentos
@@ -75,4 +78,4 @@ Não trate esses pontos como requisitos resolvidos nem acrescente serviços remo
 
 Consulte `README.md` para os comandos de build, assinatura e limitações do ambiente. O script de compilação é `./scripts/build.sh`. Diferencie compilação bem-sucedida de interação validada em simulador ou iPad físico.
 
-Validação mínima: build, testes de lógica (`./scripts/test.sh`) e, antes de integrar, o percurso de interface básico (`./scripts/test.sh ui`: soltura rasa, arrastar e soltar, fusão da zona externa, Undo, long press). Não criar testes nem scripts que comparem renderizadores, flags ou capturas no simulador; crashes e erros críticos são relatados pela pessoa usuária. Ao alterar arrasto/fusão, basta manter os testes básicos de arrastar e soltar passando.
+Validação mínima: build, testes de lógica (`./scripts/test.sh`) e, antes de integrar, o percurso de interface básico (`./scripts/test.sh ui`: soltura rasa, arrastar e soltar, soltar à esquerda e à direita da BubbleKey, fusão da zona externa, Undo, long press). Não criar testes nem scripts que comparem renderizadores, flags ou capturas no simulador; crashes e erros críticos são relatados pela pessoa usuária. Ao alterar arrasto/fusão, basta manter os testes básicos de arrastar e soltar passando.

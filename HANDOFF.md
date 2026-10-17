@@ -65,29 +65,23 @@ Worktree `TesteMetaWord-wt-gramatica-procedural`. A tabela de regras escrita à 
 - **Centralização em bloco:** a BubbleKey volta ao centro com a colmeia inteira deslizando junto (`Physics.recenter`), sem que nenhuma bolha troque de vizinho ou fileira. Restaura a intenção “o foco migra para o centro” sem o embaralhamento.
 - **Em aberto (decisão da equipe):** texto das fusões fraca e média; se a zona externa deve exigir sobreposição maior; som de erro, que deixa de ocorrer com a gramática; sugestões por associação (n-gram, `NLEmbedding`).
 
-## Próximo experimento: inserção posicional (`exp/insercao-posicional`)
+## Experimento: inserção posicional (`exp/insercao-posicional`)
 
-Proposta aprovada para outra sessão, ainda não iniciada. Parte de `exp/gramatica-procedural` (depende de `Grammar.swift`), que ainda não entrou na `main`.
+Worktree `TesteMetaWord-wt-insercao-posicional`, a partir de `exp/gramatica-procedural` (ainda fora da `main`). Etapas 1–4 da proposta entregues; regras em `SPEC.md` (“Inserção posicional”).
 
 - **Ideia:** a posição do drag sobre a BubbleKey escolhe a fresta entre palavras onde a nova entra; a frase abre espaço ao vivo e se fecha ao afastar.
-- **Etapas:**
-  1. a gramática gera a frase como lista de palavras e aceita inserção numa posição escolhida;
-  2. a bolha desenha palavra por palavra (na mesma cápsula de vidro), mede cada uma e calcula a fresta sob o dedo, com histerese;
-  3. abertura animada da frase, integrada à física (`Physics.adapt`/`compact`) e à atmosfera;
-  4. acessibilidade (VoiceOver ajustável “no início / depois de … / no fim”, setas no teclado) e teste de interface soltando à esquerda e à direita da mesma bolha.
-- **Decisões a tomar antes de começar:**
-  - **decidido (autor, 17/10):** a ordem escolhida pelo usuário é final, e a gramática só conjuga. Ordens naturais contam como fusão forte e as demais como mais fraca (“Quero agora ir” fica assim);
-  - **decidido (autor, 17/10):** remover e reordenar palavras dentro da frase fica para depois das etapas 1–4. A remoção entra como **ato novo** no histórico, não como desfazer seletivo: o Undo continua linear e as sugestões já brotadas ficam. No gesto, segurar parado continua dividindo (com tensão); segurar e puxar uma palavra para fora da cápsula remove só aquela palavra.
-- **Requisito de hitbox (autor):** a área de cada palavra dentro da BubbleKey precisa ser calculada com precisão, para conciliar pegar ou inserir com o arrastar para desfazer:
-  - medir o frame real de cada palavra no layout de texto, e não estimar pela contagem de caracteres;
-  - dividir a cápsula sem zonas mortas, com a fronteira no meio do espaço entre palavras vizinhas e a altura inteira da cápsula, para que palavras curtas (“e”, “eu”) não fiquem com alvo minúsculo;
-  - para fora da cápsula, alvo mínimo de 44 pt, pensando em C.A.;
-  - separar segurar parado de puxar por um limiar de deslocamento, e a fresta de inserção por histerese;
-  - cobrir com testes de lógica as fronteiras dos alvos e os limiares, e com teste de interface o puxar para fora.
-- **Começar com:**
-  ```sh
-  git -C ~/dev/TesteMetaWord worktree add ../TesteMetaWord-wt-insercao-posicional -b exp/insercao-posicional exp/gramatica-procedural
-  ```
+- **Decisões do autor (17/10) aplicadas:** a ordem escolhida é final e a gramática só conjuga; na ordem natural, a força da fusão; fora dela, um grau mais fraca (“Quero agora ir”, média). Remoção e reordenação ficam para depois: entram como **ato novo** no histórico (Undo continua linear, sugestões ficam); segurar parado divide, segurar e puxar uma palavra para fora remove só ela.
+- **1. Gramática:** `Grammar.units(of:)` divide a frase em palavras do vocabulário pelas formas escritas (“para casa”, “gosto de”, “Sim,”); `Grammar.insert(_:into:at:)` insere na posição, reconjuga e pontua. Posição repetida coordena com “e” onde as gêmeas se encontram. `frame(of:)` passou a ler também frases na ordem da pessoa, para que continuem se fundindo pelas posições.
+- **2. Desenho e medida:** a BubbleKey desenha palavra por palavra na mesma cápsula, nas molduras do TextKit (`PhraseLayout`); a fresta sob o dedo tem fronteira no meio de cada palavra e histerese de 10 pt, medida na frase fechada. Frase que quebra linha é desenhada inteira e usa a posição natural.
+- **3. Abertura:** a fresta abre com a largura da palavra que entra, na proporção da sobreposição até armar; a cápsula alarga e a luz do foco acompanha. Ao confirmar, a palavra desliza até a fresta e o resultado nasce na BubbleKey; a física reorganiza depois pela mudança de tamanho (`adapt`/`compact`), como antes, porque a composição fica parada durante o gesto.
+- **4. Acessibilidade e teste:** setas ← → e ajuste do VoiceOver (“inserir no início / depois de … / no fim”) num par por toque; toque, pinça e arrastar a própria BubbleKey começam na melhor fresta. O percurso de interface solta “eu” à esquerda e à direita da mesma BubbleKey.
+- **Sacudir × fresta:** o vai e vem do dedo escolhendo a fresta disparava a sacudida. A escolha da fresta tem prioridade: enquanto `Composition.choosingGap` e por 0,4 s depois (`ShakeDetector.grace`), os balanços são esquecidos; a fresta é lida antes da sacudida em cada passo do arrasto. Teste `choosingAGapSuspendsTheShake`. Sacudida real à mão ainda pendente (o XCTest não faz zigue-zague).
+- **Foco no campo da BubbleKey (pedido do autor, 17/10):** com a palavra arrastada ao alcance, a BubbleKey cresce até 1,06× e as vizinhas se afastam (18 pt + o crescimento na direção delas, até 220 pt da superfície; `Physics.makeWay`, teste `wordsAroundTheBubbleKeyStepAsideAwayFromIt`). Suaviza a intenção “a composição fica parada durante o gesto” (ONBOARDING 1.1): o afastamento é só visual, sem mover corpos nem vagas, e se desfaz ao sair. Também afasta as vizinhas do vidro da cápsula alargada. Aprovado à mão pelo autor no simulador.
+- **Motor:** `Lexicon` ganhou `phrase` (palavras do foco) e `insertions` (resultado de cada palavra em cada fresta); a zona passou a ser a força da melhor fresta. Pares sem a BubbleKey continuam com `fuse`.
+- **Requisito de hitbox:** feito o que não depende do gesto de remoção: molduras reais do layout de texto, divisão sem zonas mortas na altura inteira, mínimo de 44 pt (tomado das vizinhas; nas pontas, para fora da cápsula), histerese da fresta, com testes de lógica. **Falta, junto com a remoção:** limiar de deslocamento entre segurar parado e puxar, e o teste de interface do puxar para fora. Interpretei “para fora da cápsula, alvo mínimo de 44 pt” como o alvo de cada palavra ter ao menos 44 pt; confirmar com o autor.
+- **Verificação:** build aprovado; 78 Swift Testing (17 novos em `GrammarTests`, `InsertionTests`, `PhraseLayoutTests`) e o percurso de interface aprovados no simulador iPad Pro 13-inch (M5). **Conferido à mão pelo autor no simulador (17/10):** abertura da fresta, crescimento da BubbleKey e afastamento das vizinhas, e a prioridade sobre a sacudida, “funcionou bem”. **Ainda não conferido:** VoiceOver e setas; nada no iPad físico.
+- **Próximo:** remoção e reordenação dentro da frase (ato novo; limiar entre segurar parado e puxar; teste de interface do puxar para fora), usando os alvos de `PhraseLayout.targets`. Ao puxar ou mover uma palavra dentro da BubbleKey, suspender a sacudida como na escolha da fresta.
+- **Em aberto:** se pinça e toque devem também apontar fresta; texto de frases fora da ordem com fonoaudiólogos.
 
 ## Pendências
 

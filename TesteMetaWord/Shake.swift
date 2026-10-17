@@ -8,13 +8,24 @@ struct ShakeDetector {
     static let travel: CGFloat = 28
     static let reversals = 3
     static let window: TimeInterval = 0.8
+    /// How long the suspension outlasts its last sample, so a finger choosing a gap at the
+    /// BubbleKey's edge, slipping out and back in, does not shake.
+    static let grace: TimeInterval = 0.4
 
     private var axes = [Axis(), Axis()]
     private var fired = false
+    private var suspendedAt: TimeInterval?
 
-    /// Feeds the finger position; true exactly once, when the shake is recognized.
-    mutating func add(_ point: CGPoint, time: TimeInterval) -> Bool {
+    /// Feeds the finger position; true exactly once, when the shake is recognized. Choosing a gap
+    /// in the BubbleKey goes back and forth too, and takes priority: while `suspended`, and for
+    /// `grace` after it, the swings are forgotten, so a shake must start over.
+    mutating func add(_ point: CGPoint, time: TimeInterval, suspended: Bool = false) -> Bool {
         guard !fired else { return false }
+        if suspended { suspendedAt = time }
+        if let suspendedAt, time - suspendedAt <= Self.grace {
+            axes = [Axis(), Axis()]
+            return false
+        }
         let count = max(axes[0].add(point.x, time), axes[1].add(point.y, time))
         fired = count >= Self.reversals
         return fired
