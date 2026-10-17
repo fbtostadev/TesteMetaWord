@@ -117,6 +117,24 @@ struct PhysicsTests {
         let gaps = result.sizes.keys.filter { $0 != result.focus }.map { gap(result.bodies, result.sizes, $0, result.focus) }
         #expect(gaps.contains { abs($0 - Physics.zoneGap(1)) < 8 }, "the ring is used")
         #expect(gaps.contains { $0 > Physics.zoneGap(1) + 40 }, "the words that do not fit move to the next ring")
+        let densest = result.sizes.keys.max { result.sizes[$0]!.width < result.sizes[$1]!.width }!
+        #expect(gap(result.bodies, result.sizes, densest, result.focus) < Physics.zoneGap(1) + 8, "the densest word stays on the inner ring")
+    }
+
+    /// A word let go away from home sets off gently and speeds up, instead of snapping back.
+    @Test func aReleasedWordEasesIntoItsReturn() {
+        let focus = UUID()
+        let sizes = [focus: CGSize(width: 140, height: 58)]
+        func speeds(ramp: CGFloat) -> [CGFloat] {
+            var bodies = [focus: Physics.Body(position: CGPoint(x: 900, y: 900), ramp: ramp)]
+            return (0..<30).map { _ in
+                Physics.step(&bodies, sizes: sizes, focus: focus, zones: [:], center: center, bounds: bounds, dt: 1.0 / 60)
+                return hypot(bodies[focus]!.velocity.dx, bodies[focus]!.velocity.dy)
+            }
+        }
+        let eased = speeds(ramp: 0), snapped = speeds(ramp: 1)
+        #expect(eased[2] < snapped[2] / 4, "a gentle start")
+        #expect(eased[20] > eased[5], "then it speeds up")
     }
 
     /// A long phrase as the focus with three zones around it, as in a long composition.

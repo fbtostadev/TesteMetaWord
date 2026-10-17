@@ -11,8 +11,8 @@ struct WordChip: Identifiable, Equatable {
     let phase: Double
     var scale: Double { 1 + min(0.24, Double(fusionCount) * 0.04) }
 
-    init(_ text: String, fusionCount: Int = 0, glassID: UUID? = nil, phase: Double) {
-        self.id = UUID()
+    init(_ text: String, fusionCount: Int = 0, glassID: UUID? = nil, phase: Double, id: UUID = UUID()) {
+        self.id = id
         self.text = text
         self.fusionCount = fusionCount
         self.glassID = glassID ?? id
@@ -54,8 +54,17 @@ struct Calibration: Equatable {
     private var advanceDepth = 0.0
     private var advancedAt: TimeInterval = 0
     var calibration = Calibration() { didSet { cancel() } }
-    /// Snapshots before each fusion (with its result) or shake (no result), for Undo.
-    private var history: [(chips: [WordChip], result: UUID?)] = []
+    /// One act, for Undo: the words before it and, for a fusion, its result, the origins it
+    /// consumed and the suggestions it budded, so the result can still split after later acts.
+    private struct Act {
+        let chips: [WordChip]
+        var result: UUID?
+        var origins: [WordChip] = []
+        var budded: Set<UUID> = []
+    }
+    private var history: [Act] = []
+    /// Words the latest act brought in; a passive fusion keeps the older twin.
+    private var born: Set<UUID> = []
 
     /// `initial` is the lexicon of the initial words until the engine first answers.
     init(engine: any CompositionEngine = RuleEngine(), initial: Lexicon = RuleEngine.lexicon(for: Vocabulary.initial, focus: nil)) {
@@ -65,10 +74,21 @@ struct Calibration: Equatable {
     }
 
     var canUndo: Bool { !history.isEmpty }
-    /// Result of the latest fusion still standing, even under later shakes.
-    var latestResult: UUID? { history.last { $0.result != nil }?.result }
-    /// The result a long press divides: the latest fusion, if nothing came after it.
-    var splittable: UUID? { history.last?.result }
+    /// Result of the latest fusion still on the canvas, even under later shakes or splits.
+    var latestResult: UUID? {
+        history.reversed().lazy.compactMap(\.result).first { id in chips.contains { $0.id == id } }
+    }
+    /// The result a long press divides: the latest fusion still standing.
+    var splittable: UUID? { latestResult }
+
+    /// Chips whose text another chip already shows, each with the twin that absorbs it: the
+    /// latest result, else a word that was already there, else the first one.
+    var duplicates: [(duplicate: UUID, keeper: UUID)] {
+        Dictionary(grouping: chips, by: \.text).values.filter { $0.count > 1 }.flatMap { twins in
+            let keeper = twins.first { $0.id == latestResult } ?? twins.first { !born.contains($0.id) } ?? twins[0]
+            return twins.filter { $0.id != keeper.id }.map { ($0.id, keeper.id) }
+        }
+    }
 
     /// Optical center: the latest fusion result, or else the engine's pick.
     var focus: UUID? {
@@ -215,14 +235,18 @@ struct Calibration: Equatable {
               let b = chips.first(where: { $0.id == pair.target }),
               let combination = fusions[[a.text, b.text]] else { return }
         let result = WordChip(combination.result, fusionCount: a.fusionCount + b.fusionCount + 1, glassID: a.glassID, phase: a.phase)
-        history.append((chips, result.id))
+        var act = Act(chips: chips, result: result.id, origins: [a, b])
         let index = chips.firstIndex(where: { pair.contains($0.id) }) ?? 0
         chips.removeAll { pair.contains($0.id) }
         chips.insert(result, at: min(index, chips.count))
         let fresh = combination.suggestions.filter { text in !chips.contains { $0.text == text } }
         for (k, text) in fresh.enumerated() {
-            chips.append(WordChip(text, phase: result.phase + Physics.familyLag * Double(k + 1)))
+            let suggestion = WordChip(text, phase: result.phase + Physics.familyLag * Double(k + 1))
+            chips.append(suggestion)
+            act.budded.insert(suggestion.id)
         }
+        history.append(act)
+        born = act.budded.union([result.id])
         cancel()
     }
 
@@ -232,17 +256,53 @@ struct Calibration: Equatable {
         let present = Set(chips.map(\.text))
         let words = (lexicon.related[chip.text] ?? []).filter { !present.contains($0) }
         guard !words.isEmpty else { return false }
-        history.append((chips, nil))
-        for (k, text) in words.enumerated() {
-            chips.append(WordChip(text, phase: chip.phase + Physics.familyLag * Double(k + 1)))
-        }
+        history.append(Act(chips: chips))
+        let budded = words.enumerated().map { k, text in WordChip(text, phase: chip.phase + Physics.familyLag * Double(k + 1)) }
+        chips += budded
+        born = Set(budded.map(\.id))
         cancel()
         return true
     }
 
-    func undo(from id: UUID? = nil) {
-        guard id == nil || id == splittable, let snapshot = history.popLast() else { return }
+    /// Long press: the latest fusion result splits back into its origins, even after later acts.
+    /// Right after the fusion this is its Undo; after a shake or another split the origins come
+    /// back in the result's place, its remaining suggestions leave, later words stay, and the
+    /// split is an act of its own. Origins whose text is already shown fuse passively afterwards.
+    @discardableResult func split(_ id: UUID) -> Bool {
+        guard id == latestResult, let index = history.lastIndex(where: { $0.result == id }) else { return false }
+        if index == history.count - 1 {
+            undo()
+            return true
+        }
+        let fusion = history[index]
+        history.append(Act(chips: chips))
+        let position = chips.firstIndex { $0.id == id } ?? chips.count
+        chips.removeAll { $0.id == id || fusion.budded.contains($0.id) }
+        chips.insert(contentsOf: fusion.origins, at: min(position, chips.count))
+        born = Set(fusion.origins.map(\.id))
+        cancel()
+        return true
+    }
+
+    /// Passive fusion: each duplicate dissolves into its twin, which keeps the larger fusion count.
+    /// Part of the act that created the duplicate, so one Undo reverts both.
+    func absorbDuplicates() {
+        for (duplicate, keeper) in duplicates {
+            guard let gone = chips.first(where: { $0.id == duplicate }),
+                  let k = chips.firstIndex(where: { $0.id == keeper }) else { continue }
+            let kept = chips[k]
+            if gone.fusionCount > kept.fusionCount {
+                chips[k] = WordChip(kept.text, fusionCount: gone.fusionCount, glassID: kept.glassID, phase: kept.phase, id: kept.id)
+            }
+            chips.removeAll { $0.id == duplicate }
+        }
+        cancel()
+    }
+
+    func undo() {
+        guard let snapshot = history.popLast() else { return }
         chips = snapshot.chips
+        born = []
         cancel()
     }
 }

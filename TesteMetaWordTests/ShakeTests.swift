@@ -43,17 +43,55 @@ import CoreGraphics
         #expect(!c.canUndo)
     }
 
-    @Test func aShakeAfterAFusionKeepsItsFocusAndDefersTheSplit() async throws {
+    @Test func theKeyStillSplitsAfterAShake() async throws {
         let c = Composition()
         c.tap(c.chips[0].id); c.tap(c.chips[1].id); c.tap(c.chips[0].id)
         await c.refresh()
         let result = try #require(c.chips.first { $0.text == "Quero ir" })
-        #expect(c.derive(from: result.id))
-        #expect(c.focus == result.id)
-        #expect(c.splittable == nil, "a long press would undo the shake, not the fusion")
-        c.undo(from: result.id)
-        #expect(c.chips.count > 6, "the long press target is no longer the latest act")
+        let comer = try #require(c.chips.first { $0.text == "comer" })
+        #expect(c.derive(from: comer.id))
+        #expect(c.focus == result.id, "a shake keeps the focus")
+        #expect(c.splittable == result.id, "and the key can still split")
+        let shaken = c.chips
+        #expect(c.split(result.id))
+        let texts = c.chips.map(\.text)
+        #expect(texts.contains("querer") && texts.contains("ir"), "the origins come back")
+        #expect(!texts.contains("Quero ir") && !texts.contains("agora") && !texts.contains("depois"), "with its suggestions gone")
+        #expect(texts.contains("pão") && texts.contains("fruta") && texts.contains("biscoito"), "later words stay")
+        #expect(c.latestResult == nil)
         c.undo()
-        #expect(c.splittable == result.id)
+        #expect(c.chips == shaken, "Undo reverts the split alone")
+    }
+
+    @Test func aSplitTwinFusesPassivelyIntoTheWordAlreadyThere() async throws {
+        // An engine whose shake of "eu" buds "ir": after querer + ir, splitting the key brings a
+        // second "ir" back.
+        let c = Composition(engine: BuddingEngine(related: ["eu": ["ir"]]))
+        let querer = try #require(c.chips.first { $0.text == "querer" })
+        let ir = try #require(c.chips.first { $0.text == "ir" })
+        c.tap(querer.id); c.tap(ir.id); c.tap(querer.id)
+        await c.refresh()
+        let key = try #require(c.chips.first { $0.text == "Quero ir" })
+        let eu = try #require(c.chips.first { $0.text == "eu" })
+        #expect(c.derive(from: eu.id))
+        let twin = try #require(c.chips.first { $0.text == "ir" })
+        #expect(c.split(key.id))
+        #expect(c.chips.count { $0.text == "ir" } == 2)
+        #expect(c.duplicates.map(\.keeper) == [twin.id], "the word already there keeps its place")
+        c.absorbDuplicates()
+        #expect(c.chips.count { $0.text == "ir" } == 1)
+        #expect(c.duplicates.isEmpty)
+        c.undo()
+        #expect(c.chips.contains { $0.id == key.id }, "one Undo reverts the split and its passive fusion")
+    }
+}
+
+/// The local rules, with chosen words budded by a shake.
+private struct BuddingEngine: CompositionEngine {
+    let related: [String: [String]]
+    func lexicon(for words: [String], focus: String?) async -> Lexicon {
+        var lexicon = RuleEngine.lexicon(for: words, focus: focus)
+        lexicon.related.merge(related) { _, chosen in chosen }
+        return lexicon
     }
 }

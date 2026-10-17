@@ -54,10 +54,10 @@ import Foundation
         let intermediate = c.chips
         let older = try #require(c.chips.first { $0.text == "Quero ir" })
         try await merge("Quero ir", "agora")
-        c.undo(from: older.id)
+        #expect(!c.split(older.id), "an older result does not split")
         #expect(c.chips != intermediate)
         let latest = try #require(c.chips.first { $0.text == "Quero ir agora" })
-        c.undo(from: latest.id)
+        #expect(c.split(latest.id))
         #expect(c.chips == intermediate)
         c.undo()
         #expect(c.chips == initial)

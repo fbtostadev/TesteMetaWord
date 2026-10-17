@@ -34,7 +34,8 @@ Cada palavra é um corpo em uma física 2D:
 
 - **Repulsão:** superfícies de cápsulas mais próximas que 30 pt se repelem como molas. Como 30 pt é maior que o spacing de 24 pt, não há ponte de vidro em repouso. A repulsão é só uma rede de segurança; quem garante o espaço em repouso são os alvos:
 - **Anel empacotado pelo espaço real:** num anel, as palavras mantêm a ordem angular e cada uma fica logo depois da anterior, com pelo menos 30 pt entre superfícies; a folga restante se divide entre elas e o anel gira para mover as palavras o mínimo. A folga é medida na posição final, porque o mesmo ângulo vale mais espaço nas pontas de uma frase larga do que nas laterais.
-- **Transbordo:** se o anel não comporta todas, as mais largas passam para o anel seguinte (a escolha é estável entre quadros).
+- **Transbordo:** se o anel não comporta todas, as mais estreitas passam para o anel seguinte (a escolha é estável entre quadros); palavras densas de texto ficam mais perto do centro.
+- **Retorno suave:** uma bolha solta sem fundir (arrasto, pinça ou sacudida), mesmo nas extremidades, volta ao seu lugar (a BubbleKey, ao centro) com a força crescendo em curva suave por 0,7 s: sai devagar, acelera e assenta, sem estalo.
 - **Anéis externos desviam dos internos:** ao lado de uma frase larga as palavras ficam lado a lado, mais largas que o espaçamento entre anéis; a palavra de fora recua ao longo do seu raio até liberar 30 pt. Por isso ela pode ficar um pouco além do seu anel, nunca além do seguinte.
 - A posição em cada direção é calculada de forma exata (cápsulas horizontais), mantendo o custo por quadro baixo.
 - **Atração por zona:** uma mola leva cada palavra à distância-alvo da sua zona, na direção em que ela já está; o foco é puxado para o centro. Palavras de uma mesma zona se espalham em volta do foco pela repulsão.
@@ -107,7 +108,11 @@ Sacudir uma bolha durante o arrasto deriva até três palavras relacionadas, sem
 
 As palavras vêm do motor (`Lexicon.related`; na gramática, `Grammar.related`): primeiro as posições logo depois da última que a bolha preenche (a continuação natural), depois as anteriores; dentro de cada posição, as que formam frase completa. Ignora palavras presentes e posições já preenchidas. Exemplos: comer → pão / fruta / biscoito; Quero ir → para casa / ao banheiro / à escola; agora → aqui / ali / perto; querer, com as palavras iniciais na tela → dormir / ouvir / tomar banho.
 
-A derivação não muda o foco e entra no histórico: Undo (<) remove as palavras derivadas. Depois dela, o long press só volta a dividir o resultado quando a derivação for desfeita. Ação de acessibilidade “Derivar palavras relacionadas” em cada bolha oferece o mesmo sem sacudir.
+A derivação não muda o foco e entra no histórico: Undo (<) remove as palavras derivadas. O long press continua dividindo a BubbleKey depois dela. Ação de acessibilidade “Derivar palavras relacionadas” em cada bolha oferece o mesmo sem sacudir.
+
+## Fusão passiva
+
+A tela nunca mostra a mesma palavra duas vezes. Se um ato traz uma palavra que já está na tela (por exemplo, a divisão devolve “ir” depois que uma agitação derivou outro “ir”), cerca de 0,45 s depois do brotamento a repetida desliza 0,25 s até a gêmea e se dissolve nela, sem som. Fica a gêmea que já estava na tela (ou o resultado mais recente), com a maior contagem de fusões das duas. A fusão passiva faz parte do ato que criou a repetição: um Undo desfaz os dois.
 
 Cada chip registra a quantidade acumulada de fusões: resultado = contagem A + contagem B + 1. A escala de fonte e cápsula cresce 4% por fusão, limitada a +24%; a largura continua limitada ao canvas e pode quebrar texto em linhas.
 
@@ -125,7 +130,7 @@ O motor padrão é `RuleEngine`, que usa as regras locais da tabela acima, respo
 
 ## Undo
 
-Merge consome as origens, cria resultado e sugestões e guarda o estado anterior completo. Undo (<) restaura um merge de cada vez, incluindo identidades, fases e contagens. Visualmente, o resultado se divide: a origem que compartilha sua identidade de vidro nasce no lugar dele, a outra sai com impulso, e as sugestões encolhem e somem. O foco volta a ser o resultado anterior (ou a palavra com mais combinações) e as zonas se recompõem. Long press de 0,6 s somente no resultado da última fusão, se nada veio depois dela, faz o mesmo; ação equivalente disponível à acessibilidade.
+Merge consome as origens, cria resultado e sugestões e guarda o estado anterior completo. Undo (<) restaura um merge de cada vez, incluindo identidades, fases e contagens. Visualmente, o resultado se divide: a origem que compartilha sua identidade de vidro nasce no lugar dele, a outra sai com impulso, e as sugestões encolhem e somem. O foco volta a ser o resultado anterior (ou a palavra com mais combinações) e as zonas se recompõem. Long press de 0,6 s somente no resultado da última fusão ainda na tela faz o mesmo, mesmo que outros atos tenham vindo depois (sacudir, outra divisão): nesse caso as origens voltam no lugar do resultado, as sugestões que restaram dessa fusão saem, as palavras posteriores ficam, e a divisão vira um ato próprio, desfeito por um Undo; ação equivalente disponível à acessibilidade.
 
 ### Tensão antes da divisão (long press)
 

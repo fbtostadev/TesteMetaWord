@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var dragOrigin: CGPoint?
     @State private var fusionTask: Task<Void, Never>?
     @State private var fusingPair: MergePair?
+    @State private var passiveTask: Task<Void, Never>?
     @State private var showCalibration = false
     /// The atmosphere shader draws once it has compiled; without it the canvas stays plain.
     @State private var metalReady = false
@@ -358,14 +359,15 @@ struct ContentView: View {
     /// Runs a composition change and gives each new word a body. New words are born where the
     /// words they replace were: the one inheriting a removed glass identity stays at the core and
     /// the others bud out (fusion → suggestions, undo → the second origin).
-    private func apply(_ space: Space, quiet: Bool = false, origin: CGPoint? = nil, _ change: () -> Void) {
+    private func apply(_ space: Space, sound: SfxCue? = .split, origin: CGPoint? = nil, _ change: () -> Void) {
         let before = composition.chips
         withAnimation(birth) { change() }
         let after = composition.chips
         let removed = before.filter { old in !after.contains { $0.id == old.id } }
         let added = after.filter { new in !before.contains { $0.id == new.id } }
-        // A fusion consumes the pair; an Undo consumes the result. The long-press split has its own sound.
-        if !added.isEmpty, !quiet { sfx.play(removed.count == 2 ? .fusion : .split) }
+        // Each caller names its sound: fusion, split (Undo, split, shake) or none (passive fusion,
+        // or the long-press burst that already marked the moment).
+        if !added.isEmpty, let sound { sfx.play(sound) }
         let core = added.first { new in removed.contains { $0.glassID == new.glassID } }
         let anchor = core.flatMap { core in removed.first { $0.glassID == core.glassID } }
         let removedPositions = removed.compactMap { bodies[$0.id]?.position }
@@ -379,6 +381,7 @@ struct ContentView: View {
         }
         settleIfReduced(space)
         Task { await composition.refresh() }
+        if !composition.duplicates.isEmpty { passiveFusion(space) }
     }
 
     // MARK: - Gestures
@@ -396,7 +399,7 @@ struct ContentView: View {
     /// Reverse mitosis: both origins converge to their midpoint, then the result is born there.
     private func confirmCandidate(_ pair: MergePair, _ space: Space) {
         guard !reduceMotion, let a = bodies[pair.source]?.position, let b = bodies[pair.target]?.position else {
-            apply(space) { composition.tap(pair.source) }
+            apply(space, sound: .fusion) { composition.tap(pair.source) }
             return
         }
         let center = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
@@ -408,7 +411,7 @@ struct ContentView: View {
         fusionTask = Task { @MainActor in
             do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
             guard composition.candidate == pair else { cancel(space); return }
-            apply(space) { composition.tap(pair.source) }
+            apply(space, sound: .fusion) { composition.tap(pair.source) }
             fusingPair = nil
             fusionTask = nil
         }
@@ -439,6 +442,7 @@ struct ContentView: View {
                 if let pair = composition.endDrag() {
                     confirmCandidate(pair, space)
                 } else {
+                    bodies[id]?.ramp = 0
                     settleIfReduced(space)
                 }
             }
@@ -449,6 +453,7 @@ struct ContentView: View {
     private func shakeOff(_ id: UUID, _ space: Space) {
         suppressed.insert(id)
         dragOrigin = nil
+        bodies[id]?.ramp = 0
         withAnimation(motion) { composition.cancel() }
         derive(id, space)
     }
@@ -545,11 +550,13 @@ struct ContentView: View {
     }
 
     private func finishPinch(_ space: Space) {
+        let held = composition.pinching
         dropPinch()
         ignoreTapUntil = Date().addingTimeInterval(0.3)
         if let pair = composition.endPinch() {
             confirmCandidate(pair, space)
         } else {
+            for id in [held?.source, held?.target].compactMap({ $0 }) { bodies[id]?.ramp = 0 }
             settleIfReduced(space)
         }
     }
@@ -579,6 +586,30 @@ struct ContentView: View {
         settleIfReduced(space)
     }
 
+    /// Passive fusion: once an act's new words have budded, each twin of a word already shown
+    /// glides into it and dissolves, so the canvas never shows one word twice.
+    private func passiveFusion(_ space: Space) {
+        passiveTask?.cancel()
+        let ids = composition.chips.map(\.id)
+        passiveTask = Task { @MainActor in
+            do { try await Task.sleep(for: .milliseconds(450)) } catch { return }
+            let pairs = composition.duplicates
+            guard composition.chips.map(\.id) == ids, fusingPair == nil, let first = pairs.first else { return }
+            if !reduceMotion {
+                withAnimation(.easeIn(duration: 0.25)) {
+                    fusingPair = MergePair(source: first.duplicate, target: first.keeper)
+                    for pair in pairs {
+                        if let p = bodies[pair.keeper]?.position { bodies[pair.duplicate] = Physics.Body(position: p) }
+                    }
+                }
+                do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+                fusingPair = nil
+            }
+            guard composition.chips.map(\.id) == ids else { return }
+            apply(space, sound: nil) { composition.absorbDuplicates() }
+        }
+    }
+
     /// `quiet` skips the split chime when the long-press burst already marks the moment.
     private func undo(_ id: UUID?, _ space: Space, quiet: Bool = false) {
         dropPinch()
@@ -586,7 +617,9 @@ struct ContentView: View {
         fusionTask = nil
         fusingPair = nil
         dragOrigin = nil
-        apply(space, quiet: quiet) { composition.undo(from: id) }
+        apply(space, sound: quiet ? nil : .split) {
+            if let id { composition.split(id) } else { composition.undo() }
+        }
     }
 }
 

@@ -27,7 +27,13 @@ enum Physics {
     struct Body: Equatable {
         var position: CGPoint
         var velocity = CGVector.zero
+        /// 0 → 1 after a release: the pull home grows along an ease-in curve, so a word let go at
+        /// the edge sets off gently, speeds up and settles, instead of snapping back.
+        var ramp: CGFloat = 1
     }
+
+    /// Time for the pull home to reach full strength after a release.
+    static let rampDuration: CGFloat = 0.7
 
     /// Target surface distance from the focus for atmosphere zone 1 (inner), 2 or 3 (outer).
     /// Empty zones take no ring: an outer zone closes in on the focus when the inner ones empty.
@@ -76,7 +82,8 @@ enum Physics {
         }
         for (id, target) in targets(bodies, sizes: sizes, focus: focus, zones: zones, center: center) {
             let p = bodies[id]!.position
-            acceleration[id]! += CGVector(dx: target.x - p.x, dy: target.y - p.y) * pull
+            let r = bodies[id]!.ramp
+            acceleration[id]! += CGVector(dx: target.x - p.x, dy: target.y - p.y) * (pull * r * r * (3 - 2 * r))
         }
         let decay = exp(-damping * dt)
         for (id, a) in acceleration {
@@ -94,6 +101,7 @@ enum Physics {
                 body.position = clamped
             }
             body.velocity = v
+            body.ramp = min(1, body.ramp + dt / rampDuration)
             bodies[id] = body
         }
     }
@@ -102,7 +110,7 @@ enum Physics {
     /// rings around the focus in order (see `zoneGap`). On a ring, words keep their current
     /// angular order and are packed by the room they really take, at least `restGap` apart, with
     /// the spare room shared evenly and the whole ring turned to move them as little as possible.
-    /// Words that do not fit (the widest first) overflow to the next ring, so a crowded zone or
+    /// Words that do not fit (the narrowest first, so text-dense words stay central) overflow to the next ring, so a crowded zone or
     /// a wide focus never pins words against each other. An outer ring also clears the words of
     /// the inner ones: beside a wide focus they sit side by side, wider than the ring spacing.
     static func targets(_ bodies: [UUID: Body], sizes: [UUID: CGSize], focus: UUID?, zones: [UUID: Int], center: CGPoint) -> [UUID: CGPoint] {
@@ -137,11 +145,12 @@ enum Physics {
             func angle(_ id: UUID) -> CGFloat { atan2(bodies[id]!.position.y - core.y, bodies[id]!.position.x - core.x) }
             var kept = members.sorted { angle($0) < angle($1) }
             var overflow: [UUID] = []
-            // Drop the widest (ties by id, so the choice holds from frame to frame) until the rest fit.
+            // Move the narrowest out (ties by id, so the choice holds from frame to frame) until the
+            // rest fit: words dense with text stay closer to the focus.
             while kept.count > 1, walk(kept, from: angle(kept[0]), share: 0, gap: gap).turn > 2 * .pi {
-                let widest = kept.max { (sizes[$0]!.width, $0.uuidString) < (sizes[$1]!.width, $1.uuidString) }!
-                kept.removeAll { $0 == widest }
-                overflow.append(widest)
+                let narrowest = kept.min { (sizes[$0]!.width, $0.uuidString) < (sizes[$1]!.width, $1.uuidString) }!
+                kept.removeAll { $0 == narrowest }
+                overflow.append(narrowest)
             }
             // Plan from the first word, turn the plan toward where the words are, then plan again
             // from that turned start so every gap is measured where the words will actually sit.
