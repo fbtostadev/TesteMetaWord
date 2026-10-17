@@ -21,6 +21,12 @@ struct ContentView: View {
     /// The master bubble under a long press that will split it, and when the press began.
     @State private var tension: (id: UUID, start: TimeInterval)?
     @GestureState private var pressing: UUID?
+    /// Fingers on the canvas in window coordinates, from `TouchTracker`.
+    @State private var touches: [ObjectIdentifier: CGPoint] = [:]
+    @State private var canvasOrigin = CGPoint.zero
+    @State private var pinch: Pinch?
+    /// Chips whose finger outlived a pinch; ignored until every finger lifts.
+    @State private var suppressed: Set<UUID> = []
 
     private var motion: Animation? { reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.82) }
     /// Births and removals: a quick spring for the budding, a plain dissolve with Reduce Motion.
@@ -34,6 +40,13 @@ struct ContentView: View {
         var center: CGPoint { CGPoint(x: canvas.width / 2, y: canvas.height / 2) }
     }
 
+    /// One finger on each of two chips: which finger holds which chip, and where both started.
+    struct Pinch {
+        let fingers: [ObjectIdentifier: UUID]
+        let touchStart: [ObjectIdentifier: CGPoint]
+        let chipStart: [UUID: CGPoint]
+    }
+
     var body: some View {
         GeometryReader { geometry in
             let width = max(160, geometry.size.width)
@@ -42,12 +55,12 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 toolbar(space)
                 ScrollView {
-                    TimelineView(.animation(paused: showCalibration || (reduceMotion && composition.dragging == nil))) { context in
+                    TimelineView(.animation(paused: showCalibration || (reduceMotion && composition.dragging == nil && composition.pinching == nil))) { context in
                         canvas(space, time: context.date.timeIntervalSinceReferenceDate)
                             .onChange(of: context.date) { _, date in tick(date, space) }
                     }
                 }
-                .scrollDisabled(composition.dragging != nil)
+                .scrollDisabled(composition.dragging != nil || composition.pinching != nil)
                 status(space)
                     .frame(minHeight: 66)
                     .padding(.horizontal, 24)
@@ -128,7 +141,7 @@ struct ContentView: View {
                             undo: { undo(chip.id, space) }
                         )
                         .overlay {
-                            Capsule().strokeBorder(.white.opacity(composition.dragging == chip.id ? composition.resistance * 0.85 : 0), lineWidth: 2)
+                            Capsule().strokeBorder(.white.opacity(composition.dragging == chip.id || composition.pinching?.contains(chip.id) == true ? composition.resistance * 0.85 : 0), lineWidth: 2)
                                 .allowsHitTesting(false)
                         }
                         .offset(membraneOffset(chip, space, time: time))
@@ -136,7 +149,7 @@ struct ContentView: View {
                         .scaleEffect(tensionProgress(chip, time: time).map(SplitTension.scale) ?? 1)
                         .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: composition.resistance)
                         .position(rendered(chip, space, time: time))
-                        .zIndex(composition.dragging == chip.id || fusingPair?.source == chip.id ? 1 : 0)
+                        .zIndex(composition.dragging == chip.id || composition.pinching?.contains(chip.id) == true || fusingPair?.source == chip.id ? 1 : 0)
                         .transition(transition(for: chip))
                         .simultaneousGesture(drag(chip.id, space))
                         .simultaneousGesture(LongPressGesture(minimumDuration: SplitTension.duration)
@@ -153,6 +166,9 @@ struct ContentView: View {
         }
         .frame(width: space.canvas.width, height: space.canvas.height)
         .coordinateSpace(name: "canvas")
+        .gesture(TouchTracker { touches = $0 })
+        .onGeometryChange(for: CGPoint.self) { $0.frame(in: .global).origin } action: { canvasOrigin = $0 }
+        .onChange(of: touches) { trackPinch(space) }
         .onChange(of: pressing) { _, id in
             if let id, canSplit(id) {
                 tension = (id, Date().timeIntervalSinceReferenceDate)
@@ -164,9 +180,10 @@ struct ContentView: View {
         }
     }
 
-    /// Only the latest result divides, and never in the middle of another act.
+    /// Only the latest result divides, never in the middle of another act or with two fingers down.
     private func canSplit(_ id: UUID) -> Bool {
-        fusingPair == nil && composition.dragging == nil && composition.latestResult == id
+        fusingPair == nil && composition.dragging == nil && composition.pinching == nil
+            && touches.count <= 1 && !suppressed.contains(id) && composition.latestResult == id
     }
 
     /// Long-press tension on the master bubble. No tremor with Reduce Motion; the sound remains.
@@ -239,6 +256,7 @@ struct ContentView: View {
     private var statusText: String {
         if fusingPair != nil { return "Combinando…" }
         if composition.dropCandidate != nil { return "Solte para combinar." }
+        if composition.pinching != nil { return "Aproxime as duas palavras." }
         if composition.candidate != nil { return "Toque em uma das duas palavras para combinar." }
         if composition.activePair != nil { return "Avance até sobrepor as duas palavras." }
         if composition.selected != nil { return "Escolha outra palavra para combinar." }
@@ -337,12 +355,14 @@ struct ContentView: View {
     /// The composition holds still during the act (drag, selection, prepared pair, fusion);
     /// repulsion and the zones reorganize it only afterwards.
     private var isActing: Bool {
-        showCalibration || composition.dragging != nil || composition.selected != nil || composition.candidate != nil || fusingPair != nil
+        showCalibration || composition.dragging != nil || composition.selected != nil || composition.candidate != nil
+            || composition.pinching != nil || fusingPair != nil
     }
 
     private func tick(_ date: Date, _ space: Space) {
         defer { lastTick = date }
         if composition.dragging != nil { updateProximity(space, time: date.timeIntervalSinceReferenceDate) }
+        if composition.pinching != nil { updatePinchProximity(space) }
         guard !reduceMotion, !isActing, let lastTick else { return }
         simulate(space, dt: min(1.0 / 30, date.timeIntervalSince(lastTick)))
     }
@@ -384,7 +404,7 @@ struct ContentView: View {
     // MARK: - Gestures
 
     private func activate(_ id: UUID, _ space: Space) {
-        guard Date() >= ignoreTapUntil, fusingPair == nil else { return }
+        guard Date() >= ignoreTapUntil, fusingPair == nil, pinch == nil, !suppressed.contains(id) else { return }
         if let pair = composition.candidate, pair.contains(id) {
             confirmCandidate(pair, space)
             return
@@ -417,7 +437,8 @@ struct ContentView: View {
     private func drag(_ id: UUID, _ space: Space) -> some Gesture {
         DragGesture(minimumDistance: 10, coordinateSpace: .named("canvas"))
             .onChanged { value in
-                guard fusingPair == nil, let chip = composition.chips.first(where: { $0.id == id }) else { return }
+                guard fusingPair == nil, pinch == nil, !suppressed.contains(id),
+                      let chip = composition.chips.first(where: { $0.id == id }) else { return }
                 let now = Date().timeIntervalSinceReferenceDate
                 if composition.dragging != id {
                     dragOrigin = rendered(chip, space, time: now)
@@ -460,20 +481,97 @@ struct ContentView: View {
         composition.updateProximity(target: target, penetration: closest.map { -$0.gap / $0.height } ?? 0, time: ProcessInfo.processInfo.systemUptime)
     }
 
+    /// The handled surface recoils from its partner while the membrane resists. In a pinch both
+    /// surfaces hold a finger, so each takes half of the recoil.
     private func membraneOffset(_ chip: WordChip, _ space: Space, time: TimeInterval) -> CGSize {
-        guard !reduceMotion, composition.dragging == chip.id, composition.resistance > 0,
+        let pinched = composition.pinching?.contains(chip.id) == true
+        guard !reduceMotion, pinched || composition.dragging == chip.id, composition.resistance > 0,
               let pair = composition.activePair,
-              let target = composition.chips.first(where: { $0.id == pair.target }),
+              let other = composition.chips.first(where: { $0.id == (pair.source == chip.id ? pair.target : pair.source) }),
               let source = bodies[chip.id]?.position,
-              let size = space.sizes[chip.id], let targetSize = space.sizes[target.id] else { return .zero }
-        let to = rendered(target, space, time: time)
+              let size = space.sizes[chip.id], let otherSize = space.sizes[other.id] else { return .zero }
+        let to = rendered(other, space, time: time)
         let dx = source.x - to.x, dy = source.y - to.y
         let length = max(1, hypot(dx, dy))
-        let recoil = max(0, 36 - Physics.signedDistance(Physics.rect(source, size), Physics.rect(to, targetSize))) * composition.resistance
+        let gap = Physics.signedDistance(Physics.rect(source, size), Physics.rect(to, otherSize))
+        let recoil = max(0, 36 - gap) * composition.resistance * (pinched ? 0.5 : 1)
         return CGSize(width: dx / length * recoil, height: dy / length * recoil)
     }
 
+    // MARK: - Pinch
+
+    /// Two fingers resting on two different chips hold them; each chip then follows its finger.
+    /// The first finger to lift ends the pinch like releasing a drag.
+    private func trackPinch(_ space: Space) {
+        defer {
+            if touches.isEmpty, !suppressed.isEmpty {
+                ignoreTapUntil = Date().addingTimeInterval(0.3)
+                suppressed = []
+            }
+        }
+        if touches.count >= 2, tension != nil {
+            tension = nil
+            splitSound.cancel()
+        }
+        if let pinch {
+            guard pinch.fingers.keys.allSatisfy({ touches[$0] != nil }) else { return finishPinch(space) }
+            for (finger, id) in pinch.fingers {
+                guard let start = pinch.touchStart[finger], let now = touches[finger],
+                      let origin = pinch.chipStart[id], let size = space.sizes[id] else { continue }
+                let point = CGPoint(x: origin.x + now.x - start.x, y: origin.y + now.y - start.y)
+                bodies[id] = Physics.Body(position: Physics.clamp(point, size: size, in: space.bounds))
+            }
+            updatePinchProximity(space)
+            return
+        }
+        guard touches.count == 2, suppressed.isEmpty, fusingPair == nil else { return }
+        let now = Date().timeIntervalSinceReferenceDate
+        let centers = Dictionary(uniqueKeysWithValues: composition.chips.map { ($0.id, rendered($0, space, time: now)) })
+        var fingers: [ObjectIdentifier: UUID] = [:]
+        for (finger, point) in touches {
+            let local = CGPoint(x: point.x - canvasOrigin.x, y: point.y - canvasOrigin.y)
+            guard let id = Physics.hit(local, centers: centers, sizes: space.sizes) else { return }
+            fingers[finger] = id
+        }
+        let ids = composition.chips.map(\.id).filter { Set(fingers.values).contains($0) }
+        guard ids.count == 2 else { return }
+        // A drag in progress becomes the pinch without a jump and keeps its identity as the source.
+        let source = composition.dragging.flatMap { ids.contains($0) ? $0 : nil } ?? ids[0]
+        let target = ids[0] == source ? ids[1] : ids[0]
+        dragOrigin = nil
+        withAnimation(motion) { composition.beginPinch(source, target) }
+        pinch = Pinch(fingers: fingers, touchStart: touches, chipStart: centers.filter { ids.contains($0.key) })
+        updatePinchProximity(space)
+    }
+
+    private func finishPinch(_ space: Space) {
+        dropPinch()
+        ignoreTapUntil = Date().addingTimeInterval(0.3)
+        if let pair = composition.endPinch() {
+            confirmCandidate(pair, space)
+        } else {
+            settleIfReduced(space)
+        }
+    }
+
+    /// Forgets the fingers of a pinch; the ones still down are ignored until they lift.
+    private func dropPinch() {
+        guard let pinch else { return }
+        suppressed.formUnion(pinch.fingers.values)
+        self.pinch = nil
+    }
+
+    private func updatePinchProximity(_ space: Space) {
+        guard let pair = composition.pinching,
+              let a = bodies[pair.source]?.position, let b = bodies[pair.target]?.position,
+              let sizeA = space.sizes[pair.source], let sizeB = space.sizes[pair.target] else { return }
+        let gap = Physics.signedDistance(Physics.rect(a, sizeA), Physics.rect(b, sizeB))
+        let penetration = gap <= composition.calibration.distance ? Double(-gap / min(sizeA.height, sizeB.height)) : nil
+        composition.updatePinch(penetration: penetration, time: ProcessInfo.processInfo.systemUptime)
+    }
+
     private func cancel(_ space: Space) {
+        dropPinch()
         fusionTask?.cancel()
         fusionTask = nil
         fusingPair = nil
@@ -482,6 +580,7 @@ struct ContentView: View {
     }
 
     private func undo(_ id: UUID?, _ space: Space) {
+        dropPinch()
         fusionTask?.cancel()
         fusionTask = nil
         fusingPair = nil

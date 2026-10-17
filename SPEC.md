@@ -1,6 +1,6 @@
 # TesteMetaWord v1
 
-Experimento local para iPadOS 26+, sem persistência, voz, serviço remoto, pinça ou zona de sumiço. O motor de composição é local e substituível (ver “Motor de composição”).
+Experimento local para iPadOS 26+, sem persistência, voz, serviço remoto ou zona de sumiço. O motor de composição é local e substituível (ver “Motor de composição”).
 
 ## Composição
 
@@ -64,6 +64,16 @@ Soltar sem fusão libera a física: a palavra volta para a sua zona na direção
 
 Sem arrasto: tocar A, tocar B compatível e tocar o par novamente confirma. O par preparado fica armado no lugar, sem se mover. B incompatível passa a ser a seleção inicial. Toque repetido na seleção a cancela. Tocar no fundo, Escape, abrir calibração, redimensionar o canvas ou iniciar outro arrasto cancela. Botões permitem ativação por VoiceOver, teclado e trackpad.
 
+### Pinça (dois dedos)
+
+Com uma mão livre, um dedo repousado sobre cada uma de duas bolhas diferentes seleciona o par; não é preciso mover para começar. Cada bolha segue o seu dedo pelo deslocamento desde o pouso; a composição fica parada, como no arrasto. Se um arrasto já estava em curso e o segundo dedo pousa em outra bolha, ele vira pinça sem salto.
+
+Armar, desarmar e resistência usam a mesma medida do arrasto, agora entre as duas bolhas em movimento: 45% de penetração da menor altura arma; recuar abaixo disso desarma. O primeiro dedo que sai encerra a pinça: armado, as duas convergem e fundem como no arrasto; sem armar, voltam às suas zonas. O dedo que ficou é ignorado até sair (não vira arrasto nem toque).
+
+Par incompatível nunca arma: as bolhas seguem os dedos, e com as superfícies em contato a membrana resiste — as duas recuam simetricamente até cerca de 36 pt de separação, com contorno mais definido.
+
+No máximo duas bolhas: um terceiro dedo é ignorado; dois dedos na mesma bolha ou um dedo no fundo não iniciam pinça, e o gesto de um dedo segue normal. Com dois dedos na tela não há tensão nem divisão por long press; o segundo dedo cancela a tensão em curso (o som esmaece, sem estalo). A pinça é opcional: arrasto com um dedo e toque A → B continuam como alternativas.
+
 ## Fusão (mitose reversa) e sugestões (mitose)
 
 Após confirmar, as origens convergem por 0,2 s ao ponto médio. O resultado nasce nesse ponto, preservando a identidade de vidro da primeira origem; os textos das origens se dissolvem enquanto o texto do resultado surge, sem cápsula vazia. Gestos ficam bloqueados só durante a convergência.
@@ -102,7 +112,7 @@ Enquanto o dedo segura o resultado da última fusão (a bolha mestre divisível)
 
 ## Movimento reduzido
 
-Sem órbita, impulso, pulso ou recuo espacial. Cada mudança calcula o equilíbrio de uma vez; palavras surgem e somem por dissolve. Os campos de atmosfera atualizam posição, dimensão e intensidade sem interpolação, inclusive durante fusão e Undo. O long press não treme nem incha a bolha; o som de tensão e o estouro permanecem.
+Sem órbita, impulso, pulso ou recuo espacial. Cada mudança calcula o equilíbrio de uma vez; palavras surgem e somem por dissolve. Os campos de atmosfera atualizam posição, dimensão e intensidade sem interpolação, inclusive durante fusão e Undo. O long press não treme nem incha a bolha; o som de tensão e o estouro permanecem. Na pinça, as bolhas seguem os dedos sem recuo de membrana.
 
 ## Calibração
 
@@ -110,4 +120,4 @@ Popover com escolha Metal/Gradientes, indicação do renderizador ativo e distâ
 
 ## Validação
 
-Swift Testing: vocabulário, confirmação, armar/desarmar, cancelamento, Undo, foco e zonas de relevância, física (foco no centro, zonas ordenadas, ausência de pontes em repouso, nascimento) e órbita. Testes de interface arrastam e soltam sobre alvos reais, observam o resultado sem toque adicional e conferem Undo, soltura superficial e long press (divide o resultado; não divide uma palavra indivisível). A curva do tremor e a forma dos sons são testadas como funções puras; o que se ouve e se sente exige escuta no simulador ou no iPad. Nos dois modos, o percurso eu + querer → Eu quero + comer → Eu quero comer + agora → Eu quero comer agora registra o estado inicial, a primeira fusão, a frase com Zona 1 vazia e Undo. Durante o primeiro arrasto, XCTest mantém 60% de sobreposição e a pressão por 8 s para captura externa do estado armado por `simctl` (`scripts/capture-atmosphere.py`). A comparação na mesma sessão verifica preservação dos corpos, composição e Undo; rotação verifica o canvas com frase longa. A soltura superficial inclui pressão mantida para captura da resistência. Build e testes não provam a sensação da física nem o desempenho no iPad físico.
+Swift Testing: vocabulário, confirmação, armar/desarmar, cancelamento, Undo, foco e zonas de relevância, física (foco no centro, zonas ordenadas, ausência de pontes em repouso, nascimento) e órbita. Testes de interface arrastam e soltam sobre alvos reais, observam o resultado sem toque adicional e conferem Undo, soltura superficial e long press (divide o resultado; não divide uma palavra indivisível). A pinça é testada na lógica (armar, desarmar, soltar, par incompatível, bolha sob o dedo) e, na interface, com dois dedos reais sobre a mesma bolha (sem pinça nem divisão); o XCTest não posiciona dois dedos em elementos diferentes, então a pinça entre duas bolhas é validada à mão no simulador e no iPad. A curva do tremor e a forma dos sons são testadas como funções puras; o que se ouve e se sente exige escuta no simulador ou no iPad. Nos dois modos, o percurso eu + querer → Eu quero + comer → Eu quero comer + agora → Eu quero comer agora registra o estado inicial, a primeira fusão, a frase com Zona 1 vazia e Undo. Durante o primeiro arrasto, XCTest mantém 60% de sobreposição e a pressão por 8 s para captura externa do estado armado por `simctl` (`scripts/capture-atmosphere.py`). A comparação na mesma sessão verifica preservação dos corpos, composição e Undo; rotação verifica o canvas com frase longa. A soltura superficial inclui pressão mantida para captura da resistência. Build e testes não provam a sensação da física nem o desempenho no iPad físico.

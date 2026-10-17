@@ -42,6 +42,8 @@ struct Calibration: Equatable {
     /// Tap-prepared pair waiting for a confirming tap; also the dropped pair while it fuses.
     private(set) var candidate: MergePair?
     private(set) var dragging: UUID?
+    /// Two chips held by one finger each; `source` is the one whose identity a fusion keeps.
+    private(set) var pinching: MergePair?
     private(set) var resistance = 0.0
     /// Pair armed by deep overlap during a drag; releasing confirms it.
     private(set) var dropCandidate: MergePair?
@@ -84,7 +86,7 @@ struct Calibration: Equatable {
         lexicon = next
     }
     var activePair: MergePair? {
-        candidate ?? dragging.flatMap { source in approachTarget.map { MergePair(source: source, target: $0) } }
+        candidate ?? pinching ?? dragging.flatMap { source in approachTarget.map { MergePair(source: source, target: $0) } }
     }
 
     func compatible(_ a: UUID, _ b: UUID) -> Bool {
@@ -93,7 +95,7 @@ struct Calibration: Equatable {
     }
 
     func tap(_ id: UUID) {
-        guard chips.contains(where: { $0.id == id }), dragging == nil else { return }
+        guard chips.contains(where: { $0.id == id }), dragging == nil, pinching == nil else { return }
         if let candidate, candidate.contains(id) { confirm(); return }
         if let selected, selected != id, compatible(selected, id) {
             candidate = MergePair(source: selected, target: id)
@@ -109,9 +111,32 @@ struct Calibration: Equatable {
         dragging = id
     }
 
+    func beginPinch(_ a: UUID, _ b: UUID) {
+        cancel()
+        pinching = MergePair(source: a, target: b)
+    }
+
     func updateProximity(target: UUID?, penetration: Double, time: TimeInterval) {
         guard let dragging else { return }
-        guard let target, compatible(dragging, target) else {
+        approach(dragging, target, penetration: penetration, time: time)
+    }
+
+    /// `penetration` is nil while the two surfaces are farther apart than the approach distance.
+    /// An incompatible pair never arms; its membrane only resists once the surfaces touch.
+    func updatePinch(penetration: Double?, time: TimeInterval) {
+        guard let pinching else { return }
+        guard compatible(pinching.source, pinching.target) else {
+            approachTarget = nil
+            dropCandidate = nil
+            resistance = min(1, max(0, (penetration ?? 0) / 0.25))
+            return
+        }
+        approach(pinching.source, penetration == nil ? nil : pinching.target, penetration: penetration ?? 0, time: time)
+    }
+
+    /// Shared by drag and pinch: deep overlap arms, stalling before it builds resistance.
+    private func approach(_ source: UUID, _ target: UUID?, penetration: Double, time: TimeInterval) {
+        guard let target, compatible(source, target) else {
             approachTarget = nil
             dropCandidate = nil
             resistance = 0
@@ -134,13 +159,23 @@ struct Calibration: Equatable {
             return
         }
         resistance = 0
-        dropCandidate = MergePair(source: dragging, target: target)
+        dropCandidate = MergePair(source: source, target: target)
     }
 
     /// Releasing an armed pair returns it as the candidate; the view confirms it after the
     /// convergence animation. Without an armed pair the word simply stays where it was dropped.
     @discardableResult func endDrag() -> MergePair? {
         guard dragging != nil else { return nil }
+        return release()
+    }
+
+    /// The first finger lifting ends the pinch, with the same outcome as releasing a drag.
+    @discardableResult func endPinch() -> MergePair? {
+        guard pinching != nil else { return nil }
+        return release()
+    }
+
+    private func release() -> MergePair? {
         let pair = dropCandidate
         cancel()
         candidate = pair
@@ -152,6 +187,7 @@ struct Calibration: Equatable {
         candidate = nil
         dropCandidate = nil
         dragging = nil
+        pinching = nil
         approachTarget = nil
         resistance = 0
     }

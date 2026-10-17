@@ -30,15 +30,16 @@ O núcleo do experimento é a relação entre movimento físico, fusão visual e
 
 - Sobreposição profunda (45% da menor altura) arma o par; soltar armado confirma a fusão. Hover superficial recebe resistência visual ao parar de avançar; soltura sem fusão devolve a palavra à sua zona na direção em que caiu, sem reordenar. Não há dwell.
 - Toque A → B → membro do par oferece alternativa sem arrasto.
+- Pinça: um dedo repousado sobre cada uma de duas bolhas (no máximo duas) seleciona o par; aproximá-las usa a mesma regra de 45% e soltar o primeiro dedo armado confirma. Par incompatível só recebe resistência. Com dois dedos não há long press. Toques são observados por `TouchTracker` (UIKit, sem consumir toques).
 - Foco, zonas de relevância (interna: combina com o foco; média: combina com outra palavra; externa: sem combinação) e física de repulsão + atração por zona posicionam as palavras. A física fica congelada durante o ato (arrasto, seleção, par preparado, fusão) e reorganiza depois. Órbitas idle sincronizadas por família mostram a origem comum. Fusão é mitose reversa; sugestões brotam do resultado (mitose). Detalhes e constantes em `SPEC.md`, `TesteMetaWord/Vocabulary.swift` e `TesteMetaWord/Physics.swift`.
 - Undo usa histórico de estados completos e se mostra como divisão do resultado. Long press e ação de acessibilidade só desfazem o resultado da última fusão. Durante o long press, a bolha mestre acumula tensão (tremor crescente + som tremular) e estoura com um estalo no instante da divisão. O iPad não tem háptico para o dedo; o som faz esse papel.
 - Vocabulário e sugestões locais estão definidos em `SPEC.md`; o motor por modelo local ainda não está integrado ao app; não há voz. Cada chip guarda contagem de fusões e cresce 4% por fusão, até +24%.
-- Pinça, zona de sumiço e persistência estão fora da v1.
+- Zona de sumiço e persistência estão fora da v1.
 - Parâmetros de calibração e limitações de validação constam em `SPEC.md` e `README.md`.
 
 ## Decisões em aberto para experimentos futuros
 
-- **Gestos e recuperação:** como a pinça seleciona dois chips e qual é o alvo do long press? O Undo reverte só a última fusão ou mantém um histórico? Qual alternativa existe para quem não consegue arrastar ou usar dois dedos?
+- **Gestos e recuperação:** qual é o alvo do long press? O Undo reverte só a última fusão ou mantém um histórico? Qual alternativa existe para quem não consegue arrastar ou usar dois dedos?
 - **Vocabulário:** quais palavras aparecem inicialmente e quais combinações são válidas? As sugestões seguem oposição estrita ou alternativas contextuais contrastantes, como “agora/depois”?
 - **Zona de sumiço:** qual é o diâmetro e como os chips desaparecem? Eles podem retornar? Como o Undo interage com essa zona?
 - **Persistência:** o que deve ser salvo entre sessões? Síntese de voz ainda não foi definida.

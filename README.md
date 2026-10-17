@@ -16,7 +16,7 @@ Veja os comandos e a estrutura em [Git no LAB](docs/GIT.md).
 
 Ao abrir, as palavras brotam do centro; **querer** (a palavra com mais combinações) é o centro óptico, cercado pela zona interna. Arraste **ir** sobre **querer** até armar (realce branco e pulso) e solte: as duas convergem, **Quero ir** nasce no ponto de encontro, **agora** e **depois** brotam dele, e **Quero ir** migra para o centro. Palavras que combinam com o foco ficam na zona interna; as que só combinam entre si, na média; as sem combinação, na externa. Durante o gesto a composição fica parada; ela se reorganiza depois.
 
-Também é possível tocar querer → ir → um dos dois. Tocar no fundo cancela. `<` desfaz, dividindo o resultado; pressionar o resultado da última fusão por 0,6 s também desfaz: durante a pressão a bolha treme cada vez mais e um som tremular cresce, até estourar com um estalo no instante da divisão (o iPad não tem háptico para o dedo; o som faz esse papel). O botão de ajustes abre a calibração da distância de aproximação e a escolha de atmosfera Metal/Gradientes. Metal é o padrão nesta branch; Gradientes mantém a referência para comparação. O painel confirma qual desenho está ativo. A troca preserva a composição e o Undo, e não é salva entre sessões.
+Com dois dedos, repouse um sobre **querer** e outro sobre **ir** e aproxime-os numa pinça até armar; tirar um dos dedos funde. Também é possível tocar querer → ir → um dos dois. Tocar no fundo cancela. `<` desfaz, dividindo o resultado; pressionar o resultado da última fusão por 0,6 s também desfaz: durante a pressão a bolha treme cada vez mais e um som tremular cresce, até estourar com um estalo no instante da divisão (o iPad não tem háptico para o dedo; o som faz esse papel). O botão de ajustes abre a calibração da distância de aproximação e a escolha de atmosfera Metal/Gradientes. Metal é o padrão nesta branch; Gradientes mantém a referência para comparação. O painel confirma qual desenho está ativo. A troca preserva a composição e o Undo, e não é salva entre sessões.
 
 Estado e parâmetros vivem apenas na sessão. Sem SwiftData, voz ou serviços remotos.
 
@@ -31,6 +31,7 @@ Estado e parâmetros vivem apenas na sessão. Sem SwiftData, voz ou serviços re
 - `TesteMetaWord/AtmosphereView.swift`: parâmetros compartilhados, interpolação e referência por gradientes.
 - `TesteMetaWord/Atmosphere.metal`: faixas suaves, união luminosa das cápsulas e deformação localizada.
 - `TesteMetaWord/ChipView.swift`: cápsula de vidro, estado armado e pulso.
+- `TesteMetaWord/TouchTracker.swift`: observador UIKit dos dedos na tela (posição e quantidade), sem consumir toques; base da pinça.
 - `TesteMetaWord/SplitTension.swift`: tensão do long press (curva do tremor, síntese do som tremular e do estouro, reprodução).
 - `scripts/capture-atmosphere.py`: testes e capturas da atmosfera, incluindo o arrasto mantido em estado armado.
 
@@ -87,3 +88,13 @@ Capturas inspecionadas em `build/`:
 | `atmosphere-{fusion,split}-metal-focus-continuity-*.png` | Continuidade após fusão e Undo, com retenção da última geometria válida |
 
 A inspeção mostrou luz distribuída pelo contorno do par no Metal, queda suave sem degraus perceptíveis e canvas contínuo nas duas orientações. A diferença é localizada no gesto; o repouso mantém a referência noturna. Desempenho, consumo e sensação no iPad físico não foram medidos. Nenhum formatter/linter foi executado.
+
+## Experimento pinça: 16/10/2026
+
+Branch `exp/pinca`, worktree `TesteMetaWord-wt-pinca`. Um dedo repousado sobre cada uma de duas bolhas seleciona o par; aproximá-las arma pela mesma regra de 45% e soltar o primeiro dedo armado confirma. Regras completas em `SPEC.md` (“Pinça”). `TouchTracker.swift` observa os dedos via UIKit sem consumir toques, porque o SwiftUI não informa dedos parados nem quantos estão na tela.
+
+- **Build:** aprovado; projeto regenerado com XcodeGen.
+- **Testes:** 33 Swift Testing (6 novos em `PinchTests`: armar e confirmar, soltar abaixo do limiar, desarmar ao afastar, par incompatível só com resistência, pinça substitui seleção/arrasto, bolha sob o dedo) e 8 XCTest de interface, todos aprovados. Os 7 testes de interface anteriores provam que o observador não quebrou arrasto, soltura superficial, atmosfera, troca de renderizador e long press.
+- **Dois dedos reais:** `testTwoFingersOnOneBubbleDoNotPinchOrSplit` faz uma pinça de ~1,5 s sobre o resultado da fusão: nenhuma pinça começa (dois dedos na mesma bolha) e o long press não divide.
+- **Limite do XCTest:** `pinch(withScale:)` pousa os dois dedos na diagonal da moldura de um único elemento (medido no passo 0: cerca de 94%/4% e 10%/80% da largura/altura). Como as posições das bolhas variam a cada abertura, não há teste automatizado confiável da pinça entre duas bolhas. Exceção registrada à regra de validar o gesto inteiro em teste de interface.
+- **Pendente (validação manual):** no simulador (Option mostra dois dedos; Shift+Option move o ponto médio), pinçar querer + ir até armar e soltar; pinçar sem armar; par incompatível (eu + brincar); dois dedos parados sobre o resultado por mais de 1 s. No iPad físico: dedos reais, terceiro dedo, dedo que sobra após a fusão, folga entre dedos em chips largos e pequenos.
