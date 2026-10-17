@@ -164,7 +164,8 @@ struct PhysicsTests {
         sizes[result] = CGSize(width: 260, height: 56)
         for id in suggestions { sizes[id] = CGSize(width: 100, height: 56) }
         let births = Dictionary(uniqueKeysWithValues: ([result] + suggestions).map { ($0, birth) })
-        let after = Physics.adapt(cells: cells, births: births, sizes: sizes, grid: grid, bounds: bounds)
+        let adapted = Physics.adapt(cells: cells, births: births, sizes: sizes, grid: grid, bounds: bounds)
+        let after = Physics.compact(cells: adapted, sizes: sizes, grid: grid, toward: grid.origin, fixed: result, bounds: bounds)
 
         for (id, old) in cells where distance(old, birth) > 420 {
             #expect(after[id] == old, "a word far from the fusion keeps its cell")
@@ -177,6 +178,54 @@ struct PhysicsTests {
         for (i, p) in ids.enumerated() {
             for q in ids[(i + 1)...] {
                 let g = Physics.signedDistance(Physics.rect(after[p]!, sizes[p]!), Physics.rect(after[q]!, sizes[q]!))
+                #expect(g > Physics.glassSpacing, "cells never overlap")
+            }
+        }
+    }
+
+    /// A full honeycomb has no holes: gravity moves nothing.
+    @Test func gravityLeavesAFullHoneycombAlone() {
+        let focus = UUID()
+        var sizes = [focus: CGSize(width: 140, height: 58)]
+        var zones: [UUID: Int] = [:]
+        for k in 0..<30 {
+            let id = UUID()
+            sizes[id] = CGSize(width: [96, 120, 140, 110, 160][k % 5], height: 56)
+            zones[id] = 1 + k % 3
+        }
+        let grid = Physics.Grid(origin: center, sizes: sizes)
+        let cells = Physics.layout(sizes: sizes, focus: focus, zones: zones, center: center)
+        #expect(Physics.compact(cells: cells, sizes: sizes, grid: grid, toward: center, fixed: focus, bounds: bounds) == cells)
+    }
+
+    /// Words gone from one side leave holes, and words budded far away hang loose: gravity
+    /// settles them toward the focus without overlaps, and the structure gets compact again.
+    @Test func gravityFillsHolesTowardTheFocus() {
+        let focus = UUID()
+        var sizes = [focus: CGSize(width: 220, height: 58)]
+        var zones: [UUID: Int] = [:]
+        for k in 0..<24 {
+            let id = UUID()
+            sizes[id] = CGSize(width: [96, 120, 140, 110][k % 4], height: 56)
+            zones[id] = 1 + k % 3
+        }
+        let grid = Physics.Grid(origin: center, sizes: sizes)
+        var cells = Physics.layout(sizes: sizes, focus: focus, zones: zones, center: center)
+        // Everything left of the focus goes away; four words hang far to the right.
+        for (id, p) in cells where id != focus && p.x < center.x - 60 { cells[id] = nil; sizes[id] = nil }
+        for k in 0..<4 {
+            let id = UUID()
+            sizes[id] = CGSize(width: 110, height: 56)
+            cells[id] = CGPoint(x: center.x + 560, y: grid.y(k - 2))
+        }
+        func spread(_ cells: [UUID: CGPoint]) -> CGFloat { cells.values.map { distance($0, center) }.max()! }
+        let settled = Physics.compact(cells: cells, sizes: sizes, grid: grid, toward: center, fixed: focus, bounds: bounds)
+        #expect(spread(settled) < spread(cells) - 150, "the loose words come closer")
+        #expect(settled[focus] == center, "the focus stays")
+        let ids = Array(settled.keys)
+        for (i, p) in ids.enumerated() {
+            for q in ids[(i + 1)...] {
+                let g = Physics.signedDistance(Physics.rect(settled[p]!, sizes[p]!), Physics.rect(settled[q]!, sizes[q]!))
                 #expect(g > Physics.glassSpacing, "cells never overlap")
             }
         }

@@ -416,8 +416,12 @@ struct ContentView: View {
         if let grid, layoutCanvas == space.canvas, !kept.isEmpty, tallest + Physics.restGap <= grid.rowHeight + 0.5 {
             let births = Dictionary(uniqueKeysWithValues: composition.chips.filter { kept[$0.id] == nil }
                 .map { ($0.id, bodies[$0.id]?.position ?? space.center) })
-            next = births.isEmpty ? kept : Physics.adapt(cells: kept, births: births, sizes: space.sizes, grid: grid,
-                                                         bounds: space.bounds, affinity: affinity)
+            let adapted = births.isEmpty ? kept : Physics.adapt(cells: kept, births: births, sizes: space.sizes, grid: grid,
+                                                                bounds: space.bounds, affinity: affinity)
+            // Holes left by words that went away settle toward the honeycomb's center, from the
+            // inside out; a hole-free honeycomb stays still. The focus keeps its place.
+            next = Physics.compact(cells: adapted, sizes: space.sizes, grid: grid,
+                                   toward: grid.origin, fixed: composition.focus, bounds: space.bounds)
         } else {
             grid = Physics.Grid(origin: space.center, sizes: space.sizes)
             layoutCanvas = space.canvas

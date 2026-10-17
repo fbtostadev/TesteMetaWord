@@ -187,6 +187,54 @@ enum Physics {
         return cells
     }
 
+    /// Gentle gravity toward `core` (the honeycomb's fixed center, not the moving focus, so a
+    /// hole-free honeycomb stays still): holes left by words that went away (a fusion, a split,
+    /// an Undo) are filled from the inside out. In order of distance to `core`, a word
+    /// hops into a free spot of a nearby row that is clearly closer to `core` (by `minGain`,
+    /// within `maxHop`), and the spot it leaves is there for the next one. Words with no hole
+    /// nearby never move, so the structure stays compact without a global reshuffle.
+    static let minGain: CGFloat = 30
+    static let maxHop: CGFloat = 220
+
+    static func compact(cells: [UUID: CGPoint], sizes: [UUID: CGSize], grid: Grid, toward core: CGPoint,
+                        fixed: UUID?, bounds: CGRect) -> [UUID: CGPoint] {
+        var cells = cells
+        for _ in 0..<4 {
+            var moved = false
+            let order = cells.keys.filter { $0 != fixed && sizes[$0] != nil }.sorted {
+                (hypot(cells[$0]!.x - core.x, cells[$0]!.y - core.y), $0.uuidString) < (hypot(cells[$1]!.x - core.x, cells[$1]!.y - core.y), $1.uuidString)
+            }
+            for id in order {
+                let here = cells[id]!, half = sizes[id]!.width / 2
+                let reach = hypot(here.x - core.x, here.y - core.y)
+                let home = grid.row(here.y)
+                var best: (distance: CGFloat, point: CGPoint)?
+                for row in (home - 2)...(home + 2) {
+                    let y = grid.y(row)
+                    let taken = cells.compactMap { other, p -> (lo: CGFloat, hi: CGFloat)? in
+                        guard other != id, grid.row(p.y) == row, let w = sizes[other]?.width else { return nil }
+                        return (p.x - w / 2, p.x + w / 2)
+                    }
+                    var spots = abs(row - grid.row(core.y)) % 2 == 0 ? [core.x] : [core.x - half - restGap / 2, core.x + half + restGap / 2]
+                    for span in taken { spots += [span.lo - restGap - half, span.hi + restGap + half] }
+                    for x in spots where x - half >= bounds.minX && x + half <= bounds.maxX
+                        && !taken.contains(where: { x - half < $0.hi + restGap - 0.5 && x + half > $0.lo - restGap + 0.5 }) {
+                        let p = CGPoint(x: x, y: y)
+                        let d = hypot(x - core.x, y - core.y)
+                        guard d < reach - minGain, hypot(x - here.x, y - here.y) <= maxHop else { continue }
+                        if best == nil || d < best!.distance { best = (d, p) }
+                    }
+                }
+                if let best {
+                    cells[id] = best.point
+                    moved = true
+                }
+            }
+            if !moved { break }
+        }
+        return cells
+    }
+
     /// Organic honeycomb around the focus, for a whole composition: at launch and when the canvas
     /// changes size. Later changes are local (see `adapt`). The same words always give the same
     /// pattern; only its density varies.
