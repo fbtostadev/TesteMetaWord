@@ -8,7 +8,7 @@ Canvas escuro com cápsulas de Liquid Glass nativo em um único GlassEffectConta
 
 A disposição não é uma grade fixa: é uma grid circular organizada pela relevância ao contexto.
 
-**Centro óptico (foco).** O foco é o resultado da fusão mais recente; sem fusão (ou após desfazer todas), é a palavra com mais fusões fortes entre as presentes (inicialmente “querer”). O foco é atraído para o centro do canvas: o resultado nasce onde a fusão aconteceu e migra para o centro.
+**Centro óptico (foco).** O foco é o resultado da fusão mais recente; sem fusão (ou após desfazer todas), é a palavra com mais fusões fortes entre as presentes (inicialmente “querer”). Na abertura o foco fica no centro do canvas. Depois, o resultado nasce e fica onde a fusão aconteceu: a composição se reorganiza só em volta da mudança (ver *Colmeia orgânica*), sem levar o foco ao centro, o que moveria todas as bolhas.
 
 **Três zonas de atmosfera.** Toda palavra se funde com qualquer outra, de qualquer zona; o resultado vira o novo foco. A zona de cada palavra é a força da sua fusão com o foco:
 
@@ -33,11 +33,12 @@ Perto do ponto médio do par, a aproximação deforma as faixas em até 8 pt, de
 Cada palavra é um corpo em uma física 2D:
 
 - **Repulsão:** superfícies de cápsulas mais próximas que 30 pt se repelem como molas. Como 30 pt é maior que o spacing de 24 pt, não há ponte de vidro em repouso. A repulsão é só uma rede de segurança; quem garante o espaço em repouso é a colmeia:
-- **Colmeia orgânica:** a cada mudança (fusão, desmembramento, agitação, Undo, zonas novas, rotação) a composição inteira se reordena num só padrão, que varia apenas em densidade. A BubbleKey fica no centro; as palavras ocupam fileiras de cápsulas a 30 pt umas das outras, e as fileiras ímpares se dividem no centro, desencontradas meia célula como favos. Zona por zona (a interna primeiro) e das mais largas às mais estreitas, cada palavra toma a vaga livre mais próxima do centro: palavras densas ficam junto da BubbleKey. O padrão não depende de onde as palavras estão; das suas quatro imagens espelhadas, usa-se a que menos as move (`Physics.layout`).
+- **Colmeia orgânica:** na abertura (e quando o canvas muda de tamanho, ou surge uma bolha mais alta que as fileiras) a composição inteira é montada num só padrão: a BubbleKey no centro e as palavras em fileiras de cápsulas a 30 pt umas das outras, com as fileiras ímpares divididas no centro, desencontradas meia célula como favos; zona por zona (a interna primeiro) e das mais largas às mais estreitas, cada palavra toma a vaga livre mais próxima do centro (`Physics.layout`).
+- **Reorganização local:** depois disso cada bolha mantém a sua vaga e as fileiras ficam fixas (`Physics.Grid`). Numa fusão, desmembramento, agitação ou Undo, cada palavra nova nasce onde a mudança aconteceu e ocupa o lugar livre mais próximo — ou abre um lugar ali, empurrando para fora só as vizinhas da mesma fileira, o que perturbar menos. Bolhas longe da mudança não se movem; vagas de palavras que saíram ficam livres para as próximas (`Physics.adapt`).
 - **Cargas opostas:** uma palavra prefere a vaga vizinha de uma palavra já posicionada com que forma frase completa (fusão forte); pares complementares ficam lado a lado.
 - **Reordenação suave:** cada palavra cuja vaga mudou parte para a nova com a curva do retorno suave; a repulsão só protege o caminho.
 - **Vigia de ociosidade:** a composição nunca fica congelada. Sem nenhum dedo na tela, um ato deixado pela metade (arrasto ou pinça cujo fim não chegou, fusão que não terminou) é limpo após 1,5 s; uma seleção por toque esperando o par deixa de segurar a física após 4 s e continua selecionada (um novo toque volta a segurar). Nos dois casos as palavras voltam aos poucos, com a curva do retorno suave.
-- **Retorno suave:** uma bolha solta sem fundir (arrasto, pinça ou sacudida), mesmo nas extremidades, volta ao seu lugar (a BubbleKey, ao centro) com a força crescendo em curva suave por 0,7 s: sai devagar, acelera e assenta, sem estalo.
+- **Retorno suave:** uma bolha solta sem fundir (arrasto, pinça ou sacudida), mesmo nas extremidades, volta à sua vaga na colmeia com a força crescendo em curva suave por 0,45 s: sai devagar, acelera e assenta, sem estalo.
 - **Amortecimento:** o grosso do movimento acontece em cerca de 0,4 s, com leve elasticidade; o assentamento completo leva cerca de 1 s.
 - **Física só fora do ato:** enquanto há arrasto, seleção, par preparado ou fusão em andamento, a composição fica congelada (só a flutuação idle continua). Com a calibração aberta, o relógio inteiro pausa, incluindo a flutuação. A reorganização na colmeia acontece depois — principalmente após a fusão.
 - **Flutuação idle:** cada palavra descreve uma órbita elíptica de cerca de 4 pt com período de 6 s. Todas compartilham o período; a fase é herdada da origem. O resultado de uma fusão mantém a fase da primeira origem, e cada sugestão segue com um atraso fixo, de modo que uma família flutua em sincronia, como uma onda. A órbita para na palavra arrastada, selecionada, armada ou em fusão.
@@ -99,7 +100,7 @@ No máximo duas bolhas: um terceiro dedo é ignorado; dois dedos na mesma bolha 
 
 Após confirmar, as origens convergem por 0,2 s ao ponto médio. O resultado nasce nesse ponto, preservando a identidade de vidro da primeira origem; os textos das origens se dissolvem enquanto o texto do resultado surge, sem cápsula vazia. Gestos ficam bloqueados só durante a convergência.
 
-As sugestões brotam de dentro do resultado: nascem no mesmo ponto, com escala reduzida, e recebem impulsos radiais em direções distintas e intensidades levemente diferentes. A ponte de vidro se estica e se rompe enquanto elas se afastam. Em seguida, o resultado vira o novo foco e migra para o centro; as zonas são recalculadas e cada palavra busca sua nova atmosfera — sugestões complementares na zona interna, palavras que perderam o vínculo para fora.
+As sugestões brotam de dentro do resultado: nascem no mesmo ponto, com escala reduzida, e recebem impulsos radiais em direções distintas e intensidades levemente diferentes. A ponte de vidro se estica e se rompe enquanto elas se afastam. Em seguida, o resultado vira o novo foco no lugar das origens, as sugestões ocupam as vagas livres mais próximas e só as vizinhas abrem espaço; as zonas são recalculadas e a luz das atmosferas acompanha o novo foco.
 
 ## Sacudir (derivação)
 
@@ -129,16 +130,16 @@ O motor padrão é `RuleEngine`, que usa as regras locais da tabela acima, respo
 
 ## Undo
 
-Merge consome as origens, cria resultado e sugestões e guarda o estado anterior completo. Undo (<) restaura um merge de cada vez, incluindo identidades, fases e contagens. Visualmente, o resultado se divide: a origem que compartilha sua identidade de vidro nasce no lugar dele, a outra sai com impulso, e as sugestões encolhem e somem. O foco volta a ser o resultado anterior (ou a palavra com mais combinações) e as zonas se recompõem. Long press de 0,6 s somente no resultado da última fusão ainda na tela faz o mesmo, mesmo que outros atos tenham vindo depois (sacudir, outra divisão): nesse caso as origens voltam no lugar do resultado, as sugestões que restaram dessa fusão saem, as palavras posteriores ficam, e a divisão vira um ato próprio, desfeito por um Undo; ação equivalente disponível à acessibilidade.
+Merge consome as origens, cria resultado e sugestões e guarda o estado anterior completo. Undo (<) restaura um merge de cada vez, incluindo identidades, fases e contagens. Visualmente, o resultado se divide: a origem que compartilha sua identidade de vidro nasce no lugar dele, a outra sai com impulso, e as sugestões encolhem e somem. O foco volta a ser o resultado anterior (ou a palavra com mais combinações) e as zonas se recompõem. Long press de 0,45 s somente no resultado da última fusão ainda na tela faz o mesmo, mesmo que outros atos tenham vindo depois (sacudir, outra divisão): nesse caso as origens voltam no lugar do resultado, as sugestões que restaram dessa fusão saem, as palavras posteriores ficam, e a divisão vira um ato próprio, desfeito por um Undo; ação equivalente disponível à acessibilidade.
 
 ### Tensão antes da divisão (long press)
 
-Enquanto o dedo segura o resultado da última fusão (a bolha mestre divisível), a bolha acumula tensão durante os 0,6 s do long press:
+Enquanto o dedo segura o resultado da última fusão (a bolha mestre divisível), a bolha acumula tensão durante os 0,45 s do long press:
 
 - **Tremor visual:** deslocamento trêmulo com amplitude crescente (progresso², até 2,5 pt) e leve inchaço até 1,04×. A órbita idle para nessa bolha enquanto ela é pressionada.
 - **Som tremular:** tom grave e suave com tremolo cuja frequência e volume crescem até o fim do long press.
-- **Divisão:** ao completar 0,6 s, a nota de divisão (ver *Sons de fundo*) toca no mesmo instante da divisão, que segue o Undo descrito acima.
-- **Desistência:** soltar antes de 0,6 s ou começar a arrastar encerra tremor e som em cerca de 40 ms, sem estouro e sem mudança na composição.
+- **Divisão:** ao completar 0,45 s, a nota de divisão (ver *Sons de fundo*) toca no mesmo instante da divisão, que segue o Undo descrito acima.
+- **Desistência:** soltar antes de 0,45 s ou começar a arrastar encerra tremor e som em cerca de 40 ms, sem estouro e sem mudança na composição.
 - **Indivisível:** segurar uma bolha que não é o resultado da última fusão não produz tensão.
 - O som usa a categoria de áudio ambiente: respeita o modo silencioso e se mistura a outros áudios. Os sons são sintetizados no app (`SplitTension.swift` e `Sfx.swift`), sem arquivos de áudio nem serviço remoto.
 ### Sons de fundo

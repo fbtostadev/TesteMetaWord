@@ -138,4 +138,47 @@ struct PhysicsTests {
         #expect(Physics.orbit(phase: 1 + Physics.familyLag, time: 10) != now)
         #expect(Physics.orbit(phase: 1, time: 10, amplitude: 0) == .zero)
     }
+
+    /// A fusion inside a large honeycomb (as in a long session) only reshapes its neighbourhood:
+    /// the result takes its origins' place, the suggestions bud into free spots nearby, row
+    /// neighbours make way, and every word far from it keeps its cell.
+    @Test func aFusionOnlyReshapesItsNeighbourhood() {
+        let focus = UUID()
+        var sizes = [focus: CGSize(width: 140, height: 58)]
+        var zones: [UUID: Int] = [:]
+        for k in 0..<44 {
+            let id = UUID()
+            sizes[id] = CGSize(width: [96, 120, 140, 110, 160][k % 5], height: 56)
+            zones[id] = 1 + k % 3
+        }
+        let grid = Physics.Grid(origin: center, sizes: sizes)
+        let before = Physics.layout(sizes: sizes, focus: focus, zones: zones, center: center)
+        // Two neighbours in one row fuse.
+        let row = before.filter { $0.key != focus && abs($0.value.y - (center.y + grid.rowHeight)) < 1 }.sorted { $0.value.x < $1.value.x }
+        let (a, b) = (row[0].key, row[1].key)
+        let birth = CGPoint(x: (before[a]!.x + before[b]!.x) / 2, y: before[a]!.y)
+        var cells = before
+        cells[a] = nil; cells[b] = nil
+        sizes[a] = nil; sizes[b] = nil
+        let result = UUID(), suggestions = [UUID(), UUID()]
+        sizes[result] = CGSize(width: 260, height: 56)
+        for id in suggestions { sizes[id] = CGSize(width: 100, height: 56) }
+        let births = Dictionary(uniqueKeysWithValues: ([result] + suggestions).map { ($0, birth) })
+        let after = Physics.adapt(cells: cells, births: births, sizes: sizes, grid: grid, bounds: bounds)
+
+        for (id, old) in cells where distance(old, birth) > 420 {
+            #expect(after[id] == old, "a word far from the fusion keeps its cell")
+        }
+        let moved = cells.keys.filter { after[$0] != cells[$0] }
+        #expect(moved.count <= 8, "only a few neighbours make way, not \(moved.count)")
+        #expect(abs(after[result]!.y - birth.y) <= grid.rowHeight, "the result takes its origins' place")
+        for id in suggestions { #expect(distance(after[id]!, birth) < 400, "suggestions bud nearby") }
+        let ids = Array(after.keys)
+        for (i, p) in ids.enumerated() {
+            for q in ids[(i + 1)...] {
+                let g = Physics.signedDistance(Physics.rect(after[p]!, sizes[p]!), Physics.rect(after[q]!, sizes[q]!))
+                #expect(g > Physics.glassSpacing, "cells never overlap")
+            }
+        }
+    }
 }

@@ -32,7 +32,7 @@ enum Physics {
     }
 
     /// Time for the pull home to reach full strength after a release.
-    static let rampDuration: CGFloat = 0.7
+    static let rampDuration: CGFloat = 0.45
 
     /// Target surface distance from the focus for atmosphere zone 1 (inner), 2 or 3 (outer).
     /// Empty zones take no ring: an outer zone closes in on the focus when the inner ones empty.
@@ -105,9 +105,91 @@ enum Physics {
         }
     }
 
-    /// Organic honeycomb around the focus, computed once per change of the composition (fusion,
-    /// split, shake, Undo, new zones, resize) rather than every frame, so every change settles
-    /// into the same pattern and only its density varies.
+    /// The rows of the honeycomb: where row 0 lies and how far apart rows are. Fixed between full
+    /// layouts, so local changes keep every other word in its row.
+    struct Grid: Equatable {
+        var origin: CGPoint
+        var rowHeight: CGFloat
+
+        init(origin: CGPoint, sizes: [UUID: CGSize]) {
+            self.origin = origin
+            rowHeight = (sizes.values.map(\.height).max() ?? 56) + restGap
+        }
+
+        func row(_ y: CGFloat) -> Int { Int(((y - origin.y) / rowHeight).rounded()) }
+        func y(_ row: Int) -> CGFloat { origin.y + CGFloat(row) * rowHeight }
+    }
+
+    /// A local change of the honeycomb: every word in `cells` keeps its cell, except neighbours
+    /// that make way; each new word (in `births`, where it was born) settles in the nearest spot
+    /// that fits, either a free one or one opened by sliding its row neighbours outward just
+    /// enough, whichever disturbs less. Words far from the change never move. Widest words first,
+    /// so a fusion result takes the place of its origins before its suggestions bud around it.
+    static func adapt(cells: [UUID: CGPoint], births: [UUID: CGPoint], sizes: [UUID: CGSize], grid: Grid,
+                      bounds: CGRect, affinity: (UUID, UUID) -> Bool = { _, _ in false }) -> [UUID: CGPoint] {
+        var cells = cells
+        func spans(_ row: Int) -> [(id: UUID, lo: CGFloat, hi: CGFloat)] {
+            cells.compactMap { id, p in
+                guard grid.row(p.y) == row, let w = sizes[id]?.width else { return nil }
+                return (id, p.x - w / 2, p.x + w / 2)
+            }.sorted { $0.lo < $1.lo }
+        }
+        let newcomers = births.keys.filter { sizes[$0] != nil }.sorted {
+            (-sizes[$0]!.width, $0.uuidString) < (-sizes[$1]!.width, $1.uuidString)
+        }
+        for id in newcomers {
+            let want = births[id]!, half = sizes[id]!.width / 2
+            let home = grid.row(want.y)
+            var best: (cost: CGFloat, x: CGFloat, row: Int, moves: [UUID: CGFloat])?
+            for row in (home - 3)...(home + 3) {
+                let y = grid.y(row)
+                guard y > bounds.minY, y < bounds.maxY else { continue }
+                let taken = spans(row)
+                let rise = abs(y - want.y)
+                // A free spot: at the birth point or right beside a word of the row.
+                var free = [want.x]
+                for span in taken { free += [span.lo - restGap - half, span.hi + restGap + half] }
+                for x in free where x - half >= bounds.minX && x + half <= bounds.maxX
+                    && !taken.contains(where: { x - half < $0.hi + restGap - 0.5 && x + half > $0.lo - restGap + 0.5 }) {
+                    var cost = hypot(x - want.x, rise)
+                    let partners = cells.filter { other, p in
+                        abs(p.y - y) < grid.rowHeight * 1.5 && abs(p.x - x) < half + (sizes[other]?.width ?? 0) / 2 + restGap * 2 && affinity(id, other)
+                    }
+                    cost -= 45 * CGFloat(partners.count)
+                    if best == nil || cost < best!.cost { best = (cost, x, row, [:]) }
+                }
+                // A spot opened at the birth point: row neighbours slide outward just enough.
+                var moves: [UUID: CGFloat] = [:], edge = want.x + half
+                for span in taken where (span.lo + span.hi) / 2 >= want.x {
+                    let shift = max(0, edge + restGap - span.lo)
+                    if shift > 0 { moves[span.id] = shift }
+                    edge = span.hi + shift
+                }
+                edge = want.x - half
+                for span in taken.reversed() where (span.lo + span.hi) / 2 < want.x {
+                    let shift = max(0, span.hi - (edge - restGap))
+                    if shift > 0 { moves[span.id] = -shift }
+                    edge = span.lo - shift
+                }
+                let inside = moves.allSatisfy { id, dx in
+                    let p = cells[id]!, w = sizes[id]!.width / 2
+                    return p.x + dx - w >= bounds.minX && p.x + dx + w <= bounds.maxX
+                }
+                if inside, want.x - half >= bounds.minX, want.x + half <= bounds.maxX {
+                    let cost = rise + 0.6 * moves.values.reduce(0) { $0 + abs($1) }
+                    if best == nil || cost < best!.cost { best = (cost, want.x, row, moves) }
+                }
+            }
+            guard let best else { continue }
+            for (other, dx) in best.moves { cells[other]!.x += dx }
+            cells[id] = CGPoint(x: best.x, y: grid.y(best.row))
+        }
+        return cells
+    }
+
+    /// Organic honeycomb around the focus, for a whole composition: at launch and when the canvas
+    /// changes size. Later changes are local (see `adapt`). The same words always give the same
+    /// pattern; only its density varies.
     ///
     /// The focus sits at `center`. Words lie in rows of capsules, `restGap` apart; odd rows split
     /// at the center like offset brick courses, so neighbours nest as in a honeycomb. Zone by zone
@@ -118,7 +200,7 @@ enum Physics {
     static func layout(sizes: [UUID: CGSize], focus: UUID?, zones: [UUID: Int], center: CGPoint,
                        current: [UUID: CGPoint] = [:], affinity: (UUID, UUID) -> Bool = { _, _ in false }) -> [UUID: CGPoint] {
         guard let focus, let focusSize = sizes[focus] else { return [:] }
-        let rowHeight = (sizes.values.map(\.height).max() ?? 56) + restGap
+        let rowHeight = Grid(origin: center, sizes: sizes).rowHeight
         var rows: [Int: [ClosedRange<CGFloat>]] = [0: [(center.x - focusSize.width / 2)...(center.x + focusSize.width / 2)]]
         var targets = [focus: center]
         let words = zones.keys.filter { $0 != focus && sizes[$0] != nil }.sorted {

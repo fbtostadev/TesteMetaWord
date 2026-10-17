@@ -6,7 +6,7 @@ import CoreGraphics
 /// for haptics. Curves and sounds are pure functions; `SplitSound` only plays them.
 enum SplitTension {
     /// Same as the long-press duration: the pop lands on the split.
-    static let duration: TimeInterval = 0.6
+    static let duration: TimeInterval = 0.45
     static let maxAmplitude: CGFloat = 2.5
     static let maxSwell: CGFloat = 0.04
     static let sampleRate = 44_100.0

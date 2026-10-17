@@ -4,8 +4,12 @@ import UIKit
 struct ContentView: View {
     @State private var composition = Composition()
     @State private var bodies: [UUID: Physics.Body] = [:]
-    /// Each word's cell in the honeycomb, recomputed only when the composition changes.
+    /// Each word's cell in the honeycomb, the rows it lies on, and the canvas and sizes it was
+    /// made for. Changes are local; only a new canvas or a taller word lays it out again.
     @State private var layout: [UUID: CGPoint] = [:]
+    @State private var grid: Physics.Grid?
+    @State private var layoutCanvas = CGSize.zero
+    @State private var layoutSizes: [UUID: CGSize] = [:]
     @State private var lastTick: Date?
     @State private var dragOrigin: CGPoint?
     @State private var fusionTask: Task<Void, Never>?
@@ -400,13 +404,27 @@ struct ContentView: View {
         Physics.step(&bodies, sizes: space.sizes, targets: layout, bounds: space.bounds, dt: dt)
     }
 
-    /// Reorders the honeycomb after a change. Words whose cell moved set off for it gently, along
-    /// the ease-in curve of a release; complementary words (a strong fusion) attract.
+    /// Updates the honeycomb after a change. Locally, words keep their cells; new words (and words
+    /// that changed size) settle where they were born, and only their neighbours make way. A new
+    /// canvas, or a word taller than the rows, lays the whole honeycomb out again. Words whose cell
+    /// moved set off for it gently; complementary words (a strong fusion) attract.
     private func relayout(_ space: Space) {
-        let current = bodies.mapValues(\.position)
-        let next = Physics.layout(sizes: space.sizes, focus: composition.focus, zones: composition.zones,
-                                  center: space.center, current: current,
-                                  affinity: { composition.strength($0, $1) == 1 })
+        let affinity = { (a: UUID, b: UUID) in composition.strength(a, b) == 1 }
+        let kept = layout.filter { id, _ in space.sizes[id] != nil && space.sizes[id] == layoutSizes[id] }
+        let tallest = space.sizes.values.map(\.height).max() ?? 56
+        let next: [UUID: CGPoint]
+        if let grid, layoutCanvas == space.canvas, !kept.isEmpty, tallest + Physics.restGap <= grid.rowHeight + 0.5 {
+            let births = Dictionary(uniqueKeysWithValues: composition.chips.filter { kept[$0.id] == nil }
+                .map { ($0.id, bodies[$0.id]?.position ?? space.center) })
+            next = births.isEmpty ? kept : Physics.adapt(cells: kept, births: births, sizes: space.sizes, grid: grid,
+                                                         bounds: space.bounds, affinity: affinity)
+        } else {
+            grid = Physics.Grid(origin: space.center, sizes: space.sizes)
+            layoutCanvas = space.canvas
+            next = Physics.layout(sizes: space.sizes, focus: composition.focus, zones: composition.zones,
+                                  center: space.center, current: bodies.mapValues(\.position), affinity: affinity)
+        }
+        layoutSizes = space.sizes
         for (id, cell) in next {
             if let old = layout[id], hypot(old.x - cell.x, old.y - cell.y) < 8 { continue }
             bodies[id]?.ramp = 0
