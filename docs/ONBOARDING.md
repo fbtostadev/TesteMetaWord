@@ -17,7 +17,8 @@ O que está na coluna da esquerda é a tese do protótipo: mudar exige decisão 
 | Liquid Glass **nativo** do SwiftUI, sem simulação com blur/gradiente | `GlassEffectContainer(spacing: Physics.glassSpacing)`, tints, `glassEffectID` |
 | Fusão como **mitose reversa**; sugestões **brotam** do resultado (mitose) | Tempos (0,2 s de convergência), impulsos radiais, crossfade |
 | Intenção medida por **profundidade de sobreposição**, nunca por tempo (sem dwell) | Limiar de 45% da menor altura |
-| **A composição fica parada durante o gesto** e só se reorganiza depois | Congelar a física enquanto há arrasto, seleção, par preparado ou fusão |
+| **A composição fica parada durante o gesto** e só se reorganiza depois; a única exceção é visual: com uma palavra sobre a BubbleKey, as vizinhas se afastam e voltam (decisão do autor, 17/10) | Congelar a física enquanto há arrasto, seleção, par preparado ou fusão; afastamento por deslocamento visual (`Physics.makeWay`), sem mover corpos |
+| Na BubbleKey, **a ordem escolhida pela pessoa é final**; a gramática só conjuga | Fresta pelo meio das palavras com histerese de 10 pt, abertura com a largura da palavra, 1,06× e 18 pt de afastamento |
 | **Centro óptico** (palavra recém-fundida) e **três zonas de atmosfera**: mais perto do foco, mais provável a fusão | Algoritmo de slots por zona, bisseção do raio, gaps 40/136/232 pt, constantes em `Physics.swift` |
 | Composição **orgânica**, sem grade fixa; flutuação idle **sincronizada por família** | Órbita de 4 pt e 6 s, fase herdada |
 | Erro é recuperável: **Undo** como divisão do resultado, long press, alternativa por toque | Histórico de estados completos |
