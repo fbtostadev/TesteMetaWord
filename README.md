@@ -2,6 +2,8 @@
 
 Laboratório SwiftUI para iPadOS 26+: palavras em Liquid Glass numa grid circular orgânica, com centro óptico, zonas de relevância, fusão ao arrastar e soltar (mitose reversa), sugestões que brotam do resultado (mitose), alternativa por toque e Undo. Veja [SPEC.md](SPEC.md).
 
+**Equipe que assume o projeto:** comece por [docs/ONBOARDING.md](docs/ONBOARDING.md) (origem do protótipo, intenção de design, estado e briefing para agentes de IA). Prospecção de longo prazo em [future-HANDOFF.md](future-HANDOFF.md).
+
 Abra `TesteMetaWord.xcodeproj` no Xcode 26+. Para dispositivo físico, configure sua equipe em Signing & Capabilities.
 
 ## Versionamento
@@ -45,9 +47,9 @@ Build para dispositivo sem assinatura: `build/DerivedData/Build/Products/Debug-i
 - Build sem assinatura para iPadOS aprovado (Xcode 26.4.1). O build emite apenas o aviso de metadados App Intents ignorados.
 - 19 testes Swift Testing e 2 testes de interface (XCTest) passaram no iPad Pro 13-inch (M5), iOS 26.4. Lógica: vocabulário, armar/desarmar, confirmação, cancelamento, Undo, foco e zonas, fases das órbitas, física (foco no centro, zonas no gap-alvo, sem pontes em repouso, distribuição uniforme, nascimento) e órbita. Interface: arrastar e soltar gera “Quero ir” + sugestões sem toque extra e desfaz; soltura a 6 pt da superfície não funde e a física reabre o espaço.
 - Simulador, por capturas sequenciais durante o teste de interface (`simctl recordVideo` falhou neste ambiente com `SimRenderServer` erro 2):
-  - `build/zones-initial.png`: querer no centro óptico, cinco palavras na zona interna, três halos de atmosfera.
-  - `build/zones-fusion-frames.png`: composição parada durante o arrasto; convergência com vidro cheio; ponte de vidro esticando enquanto as sugestões brotam; resultado migrando para o centro; Undo dividindo o resultado.
-  - `build/zones-after-fusion.png`: “Quero ir” no centro, eu/agora/depois na zona interna, brincar/comer/beber na externa.
+  - `docs/media/zones-initial.png`: querer no centro óptico, cinco palavras na zona interna, três halos de atmosfera.
+  - `docs/media/zones-fusion-frames.png`: composição parada durante o arrasto; convergência com vidro cheio; ponte de vidro esticando enquanto as sugestões brotam; resultado migrando para o centro; Undo dividindo o resultado.
+  - `docs/media/zones-after-fusion.png`: “Quero ir” no centro, eu/agora/depois na zona interna, brincar/comer/beber na externa.
 - Corrigido durante a validação: `.disabled` esmaecia todas as palavras na fusão; uma troca de `zIndex` no início da convergência fazia o vidro rematerializar (cápsula escura).
 - Simulação offline das constantes: foco centralizado, zonas a até 8 pt do gap-alvo, gap mínimo ≥ 35 pt, assentamento em cerca de 1,3 s (velocidade < 5 pt/s).
 - Pendente de avaliação humana: sensação da física e do timing no dedo, flutuação idle em uso real (alvos em movimento para C.A.), membrana, long press, VoiceOver, teclado/trackpad, movimento reduzido, desempenho do vidro reavaliado a cada frame e iPad físico. Nenhum formatter/linter foi executado.

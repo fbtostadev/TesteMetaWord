@@ -27,7 +27,7 @@ Trocar a grade brick-wall rígida por uma composição orgânica: centro óptico
 
 - `./scripts/build.sh` aprovado.
 - `xcodebuild test` (comando do README): 19 testes Swift Testing e 2 XCTest de interface aprovados no iPad Pro 13-inch (M5), iOS 26.4.
-- Capturas no simulador: `build/zones-initial.png`, `build/zones-fusion-frames.png`, `build/zones-after-fusion.png`.
+- Capturas no simulador: `docs/media/zones-initial.png`, `docs/media/zones-fusion-frames.png`, `docs/media/zones-after-fusion.png`.
 
 ## Pendências
 
@@ -39,3 +39,4 @@ Trocar a grade brick-wall rígida por uma composição orgânica: centro óptico
   - glifo do Undo;
   - ordem espacial do VoiceOver.
 - Motor de IA local: seam pronto no app (`CompositionEngine`, `RuleEngine`, `Composition.refresh()`), workspace `ml/` com dataset, LoRA e avaliação. Próximo: revisar `ml/vocabulary.json`, treinar a sério, fundir/quantizar e implementar `LocalModelEngine` com MLX Swift (validar em iPad físico).
+- Prospecção de longo prazo (vocabulário aberto, dados, treino, avaliação e outros idiomas): [future-HANDOFF.md](future-HANDOFF.md).
