@@ -15,6 +15,14 @@ struct Grammar: Sendable {
     /// One value per slot; `nil` is empty.
     typealias Frame = [String?]
 
+    /// A word of a phrase as written (`text`, with its comma), the slot it fills and its
+    /// dictionary form. `slot` is nil for the coordinating "e" and for words the grammar does not know.
+    struct Unit: Equatable, Sendable {
+        let text: String
+        let slot: Slot?
+        let lemma: String
+    }
+
     private let spec: Spec
     /// Slot each single word fills.
     private let slotOf: [String: Slot]
@@ -26,6 +34,11 @@ struct Grammar: Sendable {
     private var phrases: [String: Frame] = [:]
     /// Medium results rendered so far, so they keep fusing by their slots.
     private let rendered = FrameCache()
+    /// Every written form of a word, lowercased, with its slot and dictionary form: subjects,
+    /// conjugated modals and verbs, complements and the rest ("gosto de", "tomamos banho", "e").
+    private let forms: [String: Form]
+    /// Most spaces in a written form, plus one.
+    private let longestForm: Int
 
     static let shared: Grammar = {
         guard let url = Bundle.main.url(forResource: "vocabulary", withExtension: "json"),
@@ -60,7 +73,82 @@ struct Grammar: Sendable {
             + spec.modals.map { ($0, .modal) } + verbs.map { ($0, .verb) } + tails.map { ($0, .tail) }
             + spec.times.map { ($0, .time) } + spec.places.map { ($0, .place) }
             + spec.interjections.map { ($0, .interjection) }
+        var forms: [String: Form] = ["e": Form(slot: nil, lemma: "e")]
+        for (word, slot) in slotOf { forms[word.lowercased()] = Form(slot: slot, lemma: word) }
+        for person in spec.subjects.values {
+            for modal in spec.modals { if let written = person[modal] { forms[written.lowercased()] = Form(slot: .modal, lemma: modal) } }
+        }
+        for (verb, verbSpec) in spec.verbs {
+            for written in verbSpec.present.values { forms[written.lowercased()] = Form(slot: .verb, lemma: verb) }
+        }
+        self.forms = forms
+        longestForm = forms.keys.map { $0.split(separator: " ").count }.max() ?? 1
         phrases = Dictionary(frames().map { (render($0), $0) }) { first, _ in first }
+    }
+
+    /// The words of `text` as the grammar wrote them, longest written form first ("para casa",
+    /// "gosto de" are one word each). Joined by spaces they give `text` back.
+    func units(of text: String) -> [Unit] {
+        let words = text.split(separator: " ").map(String.init)
+        var units: [Unit] = []
+        var i = 0
+        while i < words.count {
+            var match: (count: Int, form: Form)?
+            for count in stride(from: min(longestForm, words.count - i), through: 1, by: -1) {
+                let span = words[i..<(i + count)]
+                // A comma ends a word: only the last of a span may carry one.
+                guard !span.dropLast().contains(where: { $0.hasSuffix(",") }) else { continue }
+                let key = span.joined(separator: " ").lowercased()
+                if let form = forms[key.hasSuffix(",") ? String(key.dropLast()) : key] {
+                    match = (count, form)
+                    break
+                }
+            }
+            let count = match?.count ?? 1
+            let text = words[i..<(i + count)].joined(separator: " ")
+            let bare = text.hasSuffix(",") ? String(text.dropLast()) : text
+            units.append(Unit(text: text, slot: match?.form.slot, lemma: match?.form.lemma ?? bare))
+            i += count
+        }
+        return units
+    }
+
+    /// `text` entering `phrase` before its word `index` (0 … its number of words), in the order the
+    /// person chose: the grammar only conjugates (the subject, wherever it stands, conjugates the
+    /// modal, or the verb without one) and punctuates. Strength: in the grammar's own slot order it
+    /// is the strength of `fuse`; out of it, one step weaker ("Quero agora ir", medium); with a slot
+    /// twice or a word the grammar does not know, weak, and the twin slots meet with "e"
+    /// ("Quero comer e beber"); at either end the whole phrases are coordinated.
+    func insert(_ text: String, into phrase: String, at index: Int) -> Vocabulary.Combination? {
+        guard text != phrase else { return nil }
+        let base = units(of: phrase), added = units(of: text)
+        let index = min(max(0, index), base.count)
+        let before = Array(base[..<index]), after = Array(base[index...])
+        let filled = Set(base.compactMap(\.slot))
+        let and = [Unit(text: "e", slot: nil, lemma: "e")]
+        var units = before + added + after
+        if added.contains(where: { $0.slot.map(filled.contains) ?? false }) {
+            if after.isEmpty {
+                units = base + and + added
+            } else if before.isEmpty {
+                units = added + and + base
+            } else if let slot = added.first?.slot, before.last?.slot == slot {
+                units = before + and + added + after
+            } else if let slot = added.last?.slot, after.first?.slot == slot {
+                units = before + added + and + after
+            }
+        }
+        guard let exact = frame(of: units) else {
+            // Weak: suggest from the slots filled first.
+            let first = units.reduce(into: Frame(repeating: nil, count: Slot.allCases.count)) { frame, unit in
+                if let slot = unit.slot, frame[slot.rawValue] == nil { frame[slot.rawValue] = unit.lemma }
+            }
+            return Vocabulary.Combination(result: render(units), suggestions: suggestions(for: first), strength: 3)
+        }
+        let slots = units.compactMap(\.slot)
+        let natural = slots == slots.sorted { $0.rawValue < $1.rawValue }
+        let strength = min(3, (isStrong(exact) ? 1 : 2) + (natural ? 0 : 1))
+        return Vocabulary.Combination(result: render(units), suggestions: suggestions(for: exact), strength: strength)
     }
 
     func fuse(_ a: String, _ b: String) -> Vocabulary.Combination? {
@@ -111,12 +199,23 @@ struct Grammar: Sendable {
             .map(\.word)
     }
 
-    /// A phrase's frame, or a one-slot frame for a word; `nil` for a text the grammar did not write.
+    /// A phrase's frame, or a one-slot frame for a word, or the frame its words fill (a phrase in
+    /// the person's order); `nil` for a coordinated text or one the grammar did not write.
     private func frame(of text: String) -> Frame? {
         if let phrase = phrases[text] ?? rendered.frame(text) { return phrase }
-        guard let slot = slotOf[text] else { return nil }
+        guard let slot = slotOf[text] else { return frame(of: units(of: text)) }
         var frame = Frame(repeating: nil, count: Slot.allCases.count)
         frame[slot.rawValue] = text
+        return frame
+    }
+
+    /// The frame `units` fill, or `nil` when one has no slot or two share one.
+    private func frame(of units: [Unit]) -> Frame? {
+        var frame = Frame(repeating: nil, count: Slot.allCases.count)
+        for unit in units {
+            guard let slot = unit.slot, frame[slot.rawValue] == nil else { return nil }
+            frame[slot.rawValue] = unit.lemma
+        }
         return frame
     }
 
@@ -186,6 +285,29 @@ struct Grammar: Sendable {
         return text.prefix(1).uppercased() + text.dropFirst()
     }
 
+    /// Words in the person's order: the first subject conjugates the modal, or the verb without a
+    /// modal; an interjection stands apart with commas; a word the grammar does not know keeps its
+    /// text, lowercased unless it is an acronym ("TV").
+    private func render(_ units: [Unit]) -> String {
+        let subject = units.first { $0.slot == .subject }?.lemma
+        let person = spec.subjects[subject ?? spec.defaultSubject] ?? [:]
+        let modal = units.contains { $0.slot == .modal }
+        var words = units.map { unit -> String in
+            switch unit.slot {
+            case .modal: person[unit.lemma] ?? unit.lemma
+            case .verb: modal ? unit.lemma : subject.flatMap { spec.verbs[unit.lemma]?.present[$0] } ?? unit.lemma
+            case nil: unit.lemma.dropFirst().first?.isLowercase == true ? unit.lemma.prefix(1).lowercased() + unit.lemma.dropFirst() : unit.lemma
+            default: unit.lemma
+            }
+        }
+        for (k, unit) in units.enumerated() where unit.slot == .interjection {
+            if k < words.count - 1, !words[k].hasSuffix(",") { words[k] += "," }
+            if k > 0, !words[k - 1].hasSuffix(",") { words[k - 1] += "," }
+        }
+        let text = words.joined(separator: " ")
+        return text.prefix(1).uppercased() + text.dropFirst()
+    }
+
     private func suggestions(for frame: Frame) -> [String] {
         let verb = frame[Slot.verb.rawValue]
         if let time = frame[Slot.time.rawValue] {
@@ -206,6 +328,11 @@ private final class FrameCache: Sendable {
 }
 
 private extension Grammar {
+    struct Form: Sendable {
+        let slot: Slot?
+        let lemma: String
+    }
+
     struct Spec: Decodable, Sendable {
         struct Verb: Decodable, Sendable {
             let complements: [String]
