@@ -49,6 +49,8 @@ struct Calibration: Equatable {
     private(set) var dropCandidate: MergePair?
     /// Compatible chip within approach distance of the one being handled.
     private(set) var approachTarget: UUID?
+    /// Overlap depth of the armed-capable pair being approached, 0 (touching or apart) to 1; drives the continuous tone.
+    private(set) var depth = 0.0
     private var advanceDepth = 0.0
     private var advancedAt: TimeInterval = 0
     var calibration = Calibration() { didSet { cancel() } }
@@ -135,6 +137,7 @@ struct Calibration: Equatable {
         guard compatible(pinching.source, pinching.target) else {
             approachTarget = nil
             dropCandidate = nil
+            depth = 0
             resistance = min(1, max(0, (penetration ?? 0) / 0.25))
             return
         }
@@ -147,8 +150,10 @@ struct Calibration: Equatable {
             approachTarget = nil
             dropCandidate = nil
             resistance = 0
+            depth = 0
             return
         }
+        depth = min(1, max(0, penetration))
         if approachTarget != target {
             approachTarget = target
             advanceDepth = penetration
@@ -197,6 +202,7 @@ struct Calibration: Equatable {
         pinching = nil
         approachTarget = nil
         resistance = 0
+        depth = 0
     }
 
     private func confirm() {

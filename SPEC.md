@@ -110,11 +110,12 @@ Enquanto o dedo segura o resultado da última fusão (a bolha mestre divisível)
 - O som usa a categoria de áudio ambiente: respeita o modo silencioso e se mistura a outros áudios. Os sons são sintetizados no app (`SplitTension.swift` e `Sfx.swift`), sem arquivos de áudio nem serviço remoto.
 ### Sons de fundo
 
-Os sons são discretos por princípio: acompanham a interação sem chamar atenção em quem usa o app o dia inteiro. Por isso só os momentos raros, que mudam algo, têm som. Gestos frequentes (tocar, arrastar, aproximar, armar) ficam em silêncio e têm feedback só visual.
+Os sons são discretos por princípio: acompanham a interação sem chamar atenção em quem usa o app o dia inteiro. Por isso só os momentos raros, que mudam algo, têm som. Gestos frequentes (tocar, arrastar, armar) ficam em silêncio e têm feedback só visual. A única exceção é o tom de profundidade, descrito abaixo.
 
 - **Fusão:** uma nota grave e macia (ré, 0,3 s) ao confirmar.
 - **Divisão:** a mesma nota descendo (0,25 s), no Undo pelo botão `<` e na divisão por long press.
 - **Erro:** um único toc surdo (0,16 s, sem sobretons) quando uma pinça incompatível encosta e a membrana resiste. O toque A → B incompatível não soa, pois só troca a seleção.
+- **Tom de profundidade:** enquanto um par compatível se sobrepõe (arrasto ou pinça), um tom contínuo acompanha a profundidade da sobreposição (0 a 1, armando em 0,45). Silencioso com as bolhas separadas ou só encostadas; sobe de ré (293 Hz) até lá (440 Hz), a quinta da fusão, e de volume até 0,035. Suavizado em cerca de 30 ms e some ao afastar, soltar ou cancelar. Par incompatível não soa (só o erro). Gerado em tempo real (`DepthVoice`), em thread de áudio sem isolamento de ator.
 - Nível baixo: pico de 0,03–0,04 por nota, tremor em até 0,09. Intervalo mínimo entre repetições de 0,4 s (fusão e divisão) e 1 s (erro). Escala pentatônica de ré em registro grave, sem harmônicos agudos.
 - **Interruptor "Sons"** na calibração, ligado por padrão; silencia também o tremor e a divisão. Vale só na sessão.
 - Sons sintetizados por funções puras (`SfxSynth`); a sensação continua exigindo escuta no simulador ou no iPad.

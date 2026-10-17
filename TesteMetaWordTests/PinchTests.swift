@@ -101,4 +101,18 @@ import CoreGraphics
         c.cancel()
         #expect(c.approachTarget == nil)
     }
+
+    @Test func depthFollowsTheOverlapAndResetsWhenApartOrCancelled() {
+        let c = Composition()
+        c.beginDrag(c.chips[0].id)
+        c.updateProximity(target: c.chips[1].id, penetration: 0.3, time: 0)
+        #expect(c.depth == 0.3)
+        c.updateProximity(target: c.chips[1].id, penetration: 2, time: 0.1)
+        #expect(c.depth == 1)
+        c.updateProximity(target: nil, penetration: 0, time: 0.2)
+        #expect(c.depth == 0)
+        c.updateProximity(target: c.chips[1].id, penetration: 0.5, time: 0.3)
+        c.cancel()
+        #expect(c.depth == 0)
+    }
 }

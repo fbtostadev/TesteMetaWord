@@ -20,6 +20,7 @@ struct ContentView: View {
     @State private var splitSound = SplitSound()
     @State private var sfx = Sfx()
     @State private var soundsOn = true
+    @State private var depthSound = DepthSound()
     /// The master bubble under a long press that will split it, and when the press began.
     @State private var tension: (id: UUID, start: TimeInterval)?
     @GestureState private var pressing: UUID?
@@ -171,7 +172,8 @@ struct ContentView: View {
         .gesture(TouchTracker { touches = $0 })
         .onGeometryChange(for: CGPoint.self) { $0.frame(in: .global).origin } action: { canvasOrigin = $0 }
         .onChange(of: touches) { trackPinch(space) }
-        .onChange(of: soundsOn, initial: true) { sfx.muted = !soundsOn; splitSound.muted = !soundsOn }
+        .onChange(of: soundsOn, initial: true) { sfx.muted = !soundsOn; splitSound.muted = !soundsOn; depthSound.muted = !soundsOn }
+        .onChange(of: composition.depth) { _, depth in depthSound.update(depth: depth) }
         .onChange(of: composition.rejecting) { _, rejecting in
             if rejecting { sfx.play(.error) }
         }

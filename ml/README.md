@@ -6,7 +6,7 @@ Workspace para treinar o modelo de linguagem pequeno que vai substituir as regra
 
 - **Modelo:** `Qwen/Qwen3-0.6B`, multilíngue, com bom português, cerca de 1,2 GB em bf16 e cerca de 350 MB quantizado em 4 bits.
 - **Ajuste:** LoRA com `mlx-lm`. O caminho de adapters do Apple Foundation Models foi encerrado no OS 27, por isso a escolha de um modelo aberto.
-- **Execução no iPad:** MLX Swift (`mlx-swift-lm`), por trás do protocolo `CompositionEngine` do app. Só entra no app depois que o modelo passar na avaliação. O simulador não roda Metal, então a validação de desempenho exige iPad físico.
+- **Execução no iPad:** MLX Swift (`mlx-swift-lm`), por trás do protocolo `CompositionEngine` do app. Só entra no app depois que o modelo passar na avaliação. O simulador renderiza Metal (a atmosfera do app usa um shader), mas o MLX não é suportado nele, e latência e memória do simulador refletem o Mac, não o iPad. Por isso a validação de desempenho exige iPad físico.
 - **Dados:** gerados a partir de uma gramática de C.A. em pt-BR (`vocabulary.json`) que reproduz as regras atuais do app como subconjunto. Uma asserção em `build_dataset.py` garante a paridade. **Revise o vocabulário antes de treinar a sério.**
 
 ## Tarefas e formato

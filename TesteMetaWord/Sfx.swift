@@ -1,4 +1,5 @@
 import AVFoundation
+import os
 
 /// Interaction sounds, synthesized, meant to stay in the background: only rare moments that change
 /// something (fusion, split, rejection) make a sound, each a single soft low note a few dozen
@@ -120,5 +121,83 @@ enum SfxSynth {
             buffers[cue] = buffer
         }
         return !buffers.isEmpty
+    }
+}
+
+/// A continuous background tone tied to the overlap depth of an approaching pair: silent apart,
+/// it rises from D4 toward the fifth A4 as the surfaces sink into each other, and gets slightly
+/// louder, never above background level. Parameters are smoothed so it never clicks.
+enum DepthTone {
+    static let maxLevel = 0.035
+    static let lowHz = 293.66, highHz = 440.0
+
+    static func frequency(depth: Double) -> Double {
+        lowHz * pow(highHz / lowHz, min(1, max(0, depth)))
+    }
+
+    static func level(depth: Double) -> Double {
+        maxLevel * pow(min(1, max(0, depth)), 1.5)
+    }
+}
+
+/// Real-time voice behind `DepthTone`. The audio thread reads `target`; the main actor writes it.
+final class DepthVoice: @unchecked Sendable {
+    private let target = OSAllocatedUnfairLock(initialState: (hz: DepthTone.lowHz, level: 0.0))
+    private var phase = 0.0, hz = DepthTone.lowHz, level = 0.0
+    private let rate: Double
+
+    init(sampleRate: Double) { rate = sampleRate }
+
+    func set(depth: Double) {
+        target.withLock { $0 = (DepthTone.frequency(depth: depth), DepthTone.level(depth: depth)) }
+    }
+
+    /// Built here, not in the main-actor `DepthSound`: a closure created in a main-actor method
+    /// inherits that isolation, and Swift would assert on the main queue from the audio thread.
+    nonisolated func makeNode(format: AVAudioFormat) -> AVAudioSourceNode {
+        AVAudioSourceNode(format: format) { [self] _, _, frames, buffers in
+            let list = UnsafeMutableAudioBufferListPointer(buffers)
+            guard let data = list.first?.mData?.assumingMemoryBound(to: Float.self) else { return noErr }
+            render(data, frames: Int(frames))
+            return noErr
+        }
+    }
+
+    func render(_ out: UnsafeMutablePointer<Float>, frames: Int) {
+        let goal = target.withLock { $0 }
+        let step = 1 - exp(-1 / (0.03 * rate)) // ~30 ms smoothing
+        for index in 0..<frames {
+            hz += (goal.hz - hz) * step
+            level += (goal.level - level) * step
+            phase += 2 * .pi * hz / rate
+            if phase > 2 * .pi { phase -= 2 * .pi }
+            out[index] = Float(level * (sin(phase) + 0.25 * sin(2 * phase)) / 1.25)
+        }
+    }
+}
+
+@MainActor final class DepthSound {
+    private let engine = AVAudioEngine()
+    private let voice = DepthVoice(sampleRate: SfxSynth.sampleRate)
+    private var attached = false
+    var muted = false { didSet { if muted { voice.set(depth: 0) } } }
+
+    func update(depth: Double) {
+        guard !muted else { return voice.set(depth: 0) }
+        if depth > 0, !start() { return }
+        voice.set(depth: depth)
+    }
+
+    private func start() -> Bool {
+        if !attached {
+            attached = true
+            try? AVAudioSession.sharedInstance().setCategory(.ambient)
+            let format = AVAudioFormat(standardFormatWithSampleRate: SfxSynth.sampleRate, channels: 1)!
+            let node = voice.makeNode(format: format)
+            engine.attach(node)
+            engine.connect(node, to: engine.mainMixerNode, format: format)
+        }
+        if !engine.isRunning { try? engine.start() }
+        return engine.isRunning
     }
 }
